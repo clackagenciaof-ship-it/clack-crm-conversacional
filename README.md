@@ -34,7 +34,7 @@ Incluído nesta versão:
 - Mensagens rápidas copiáveis.
 - Relatórios básicos.
 - Configurações e perfis.
-- Layout responsivo com identidade visual da Clack Growth Company.
+- Layout responsivo com identidade visual verde turquesa da Clack.
 
 Fora do MVP 1, mas preparado como próximas fases:
 
@@ -94,6 +94,7 @@ src/
 - `docs/ROADMAP.md` — roadmap oficial por fase.
 - `docs/BACKLOG.md` — backlog técnico e funcional.
 - `docs/SUPABASE_CONEXAO.md` — conexão futura com Supabase.
+- `docs/IDENTIDADE_VISUAL.md` — identidade visual verde turquesa do CRM.
 - `docs/PROXIMOS_PASSOS.md` — próximos passos técnicos.
 
 ## Dados demonstrativos
@@ -122,16 +123,21 @@ Leads demonstrativos:
 
 ## Paleta visual
 
-A interface segue a identidade premium da Clack:
+A interface segue uma identidade verde turquesa, mais limpa, clara, institucional e profissional:
 
-- Fundo principal: `#08001E`
-- Fundo secundário: `#10012B`
-- Roxo: `#360F6C`, `#6C1AAF`, `#4E17BB`
-- Laranja: `#FC540B`, `#EA7804`
-- Amarelo performance: `#F8A001`
-- Magenta/Rosa: `#BE1E6F`, `#D7324C`
-- Branco: `#FFFFFF`
-- Cinza apoio: `#AD9687`
+- Verde profundo: `#005954`
+- Verde institucional: `#338b85`
+- Turquesa principal: `#5dc1b9`
+- Turquesa claro: `#9ce0db`
+- Fundo gelo: `#d5ffff`
+- Branco: `#ffffff`
+- Cinzas de apoio: tons frios derivados de azul/cinza e verde acinzentado
+
+Gradiente oficial:
+
+```css
+linear-gradient(135deg, #005954 0%, #338b85 48%, #5dc1b9 100%)
+```
 
 ## Estágio atual
 
