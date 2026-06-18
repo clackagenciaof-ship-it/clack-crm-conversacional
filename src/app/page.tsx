@@ -87,6 +87,7 @@ export default function Home() {
           onClose={() => crm.setSelectedLead(null)}
           openConversation={crm.openConversation}
           copyMessage={crm.copyMessage}
+          updateLead={crm.updateLead}
         />
       )}
     </AppShell>
