@@ -85,6 +85,29 @@ export async function createContact(payload: ContactInsert) {
   return data;
 }
 
+export async function updateContact(id: string, payload: Database['public']['Tables']['contacts']['Update']) {
+  const supabase = getClientOrThrow();
+  const { data, error } = await supabase
+    .from('contacts')
+    .update({ ...payload, updated_at: new Date().toISOString() })
+    .eq('id', id)
+    .select('*')
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+export async function deleteContact(id: string) {
+  const supabase = getClientOrThrow();
+  const { error } = await supabase
+    .from('contacts')
+    .delete()
+    .eq('id', id);
+
+  if (error) throw error;
+}
+
 export async function listOpportunities(companyId: string) {
   const supabase = getClientOrThrow();
   const { data, error } = await supabase
@@ -181,6 +204,18 @@ export async function createQuickMessage(payload: QuickMessageInsert) {
 
   if (error) throw error;
   return data;
+}
+
+export async function listActivityLogs(companyId: string) {
+  const supabase = getClientOrThrow();
+  const { data, error } = await supabase
+    .from('activity_logs')
+    .select('*')
+    .eq('company_id', companyId)
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+  return data as Database['public']['Tables']['activity_logs']['Row'][];
 }
 
 export async function createActivityLog(payload: ActivityLogInsert) {
