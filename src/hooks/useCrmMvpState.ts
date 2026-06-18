@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react';
 import { demoLeads, demoOpportunities, demoQuickMessages, demoTasks } from '@/data/demo-data';
 import { formatCurrencyBRL as brl } from '@/lib/crm/formatters';
+import { useCrmRealLoader } from '@/hooks/useCrmRealLoader';
 import type { Lead, LeadTemperature, Opportunity, PipelineStage, QuickMessage, Screen, Task } from '@/types/crm';
 
 type LeadForm = {
@@ -57,6 +58,7 @@ export function useCrmMvpState() {
   const [tempFilter, setTempFilter] = useState('Todas');
   const [leadForm, setLeadForm] = useState<LeadForm>(initialLeadForm);
   const [taskForm, setTaskForm] = useState<TaskForm>(initialTaskForm);
+  const { loadingRealData, dataNotice } = useCrmRealLoader({ setLeads, setDeals, setTasks, setMessages });
 
   const filteredLeads = useMemo(() => leads.filter((lead) =>
     (lead.name.toLowerCase().includes(filter.toLowerCase()) || lead.phone.includes(filter)) &&
@@ -184,6 +186,8 @@ export function useCrmMvpState() {
     taskForm,
     setTaskForm,
     filteredLeads,
+    loadingRealData,
+    dataNotice,
     addLead,
     moveDeal,
     markWon,
