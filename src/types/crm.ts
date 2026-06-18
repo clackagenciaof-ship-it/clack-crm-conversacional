@@ -66,6 +66,7 @@ export type Task = {
   dbId?: string;
   title: string;
   leadId: number;
+  leadName?: string;
   owner: string;
   type: string;
   priority: TaskPriority;
