@@ -6,6 +6,18 @@ export type LoginResult = {
   message: string;
 };
 
+export async function hasActiveSupabaseSession() {
+  if (!hasSupabaseConfig()) return false;
+
+  const supabase = createSupabaseBrowserClient();
+  if (!supabase) return false;
+
+  const { data, error } = await supabase.auth.getSession();
+  if (error) return false;
+
+  return Boolean(data.session);
+}
+
 export async function signInWithSupabaseOrDemo(email: string, password: string): Promise<LoginResult> {
   if (!hasSupabaseConfig()) {
     return {
