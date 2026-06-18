@@ -93,6 +93,7 @@ export type Database = {
           contact_id: string;
           pipeline_id: string | null;
           stage_id: string | null;
+          stage_name: string;
           owner_id: string | null;
           title: string;
           value: number;
@@ -111,6 +112,7 @@ export type Database = {
           contact_id: string;
           pipeline_id?: string | null;
           stage_id?: string | null;
+          stage_name?: string;
           owner_id?: string | null;
           title: string;
           value?: number;
