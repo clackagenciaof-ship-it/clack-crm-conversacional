@@ -3,11 +3,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { demoLeads, demoOpportunities, demoQuickMessages, demoTasks } from '@/data/demo-data';
 import { formatCurrencyBRL as brl } from '@/lib/crm/formatters';
-import { createRealLeadAndOpportunity, createRealTask, persistOpportunityLost, persistOpportunityStage, persistOpportunityWon, persistTaskCompleted, statusFromStage } from '@/lib/crm/real-persistence';
+import { createRealLeadAndOpportunity, createRealTask, persistOpportunityLost, persistOpportunityStage, persistOpportunityWon, persistTaskCompleted, removeRealTask, statusFromStage, updateRealTask } from '@/lib/crm/real-persistence';
 import { persistLeadActivity, removeRealLead, updateRealLead } from '@/lib/crm/lead-persistence';
 import { hasActiveSupabaseSession, signInWithSupabaseOrDemo, signOutSupabase } from '@/lib/supabase/auth';
 import { useCrmRealLoader } from '@/hooks/useCrmRealLoader';
-import type { Lead, LeadStatus, LeadTemperature, Opportunity, PipelineStage, QuickMessage, Screen, Task } from '@/types/crm';
+import type { Lead, LeadStatus, LeadTemperature, Opportunity, PipelineStage, QuickMessage, Screen, Task, TaskStatus } from '@/types/crm';
 
 type LeadForm = {
   name: string;
@@ -30,6 +30,10 @@ type TaskForm = {
   type: string;
   priority: Task['priority'];
   due: string;
+};
+
+type TaskEditForm = TaskForm & {
+  status: TaskStatus;
 };
 
 const initialLeadForm: LeadForm = {
@@ -319,6 +323,32 @@ export function useCrmMvpState() {
     }
   }
 
+  async function updateTaskItem(task: Task, form: TaskEditForm) {
+    const selectedTaskLead = leads.find((lead) => lead.id === Number(form.leadId));
+
+    try {
+      const updatedTask = await updateRealTask(task, form, selectedTaskLead, tasks.findIndex((item) => item.id === task.id) + 1);
+      const fallbackTask = updatedTask || { ...task, ...form, leadName: selectedTaskLead?.name || task.leadName };
+      setTasks((currentTasks) => currentTasks.map((item) => item.id === task.id ? fallbackTask : item));
+      addHistory(Number(form.leadId), `Tarefa atualizada: ${form.title}`);
+      return;
+    } catch (error) {
+      console.error('Falha ao editar tarefa real. Atualizando localmente.', error);
+      setTasks((currentTasks) => currentTasks.map((item) => item.id === task.id ? { ...task, ...form, leadName: selectedTaskLead?.name || task.leadName } : item));
+    }
+  }
+
+  async function removeTask(taskId: number) {
+    const task = tasks.find((item) => item.id === taskId);
+    try {
+      await removeRealTask(task);
+    } catch (error) {
+      console.error('Falha ao remover tarefa real. Removendo localmente.', error);
+    }
+
+    setTasks((currentTasks) => currentTasks.filter((item) => item.id !== taskId));
+  }
+
   return {
     logged,
     setLogged,
@@ -360,6 +390,8 @@ export function useCrmMvpState() {
     copyMessage,
     addLeadNote,
     addTask,
-    completeTask
+    completeTask,
+    updateTaskItem,
+    removeTask
   };
 }
