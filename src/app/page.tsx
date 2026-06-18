@@ -2,8 +2,9 @@
 
 import { useMemo, useState } from "react";
 import { Login } from "@/components/auth/Login";
-import { DashboardCharts } from "@/components/dashboard/DashboardCharts";
+import { DashboardPage } from "@/components/dashboard/DashboardPage";
 import { AppShell } from "@/components/layout/AppShell";
+import { LeadsPage } from "@/components/leads/LeadsPage";
 import { Badge } from "@/components/ui/Badge";
 import { demoLeads, demoOpportunities, demoQuickMessages, demoTasks } from "@/data/demo-data";
 import { CRM_USERS, LEAD_SOURCES, PIPELINE_STAGES } from "@/lib/crm/constants";
@@ -100,8 +101,8 @@ export default function Home() {
   return (
     <AppShell screen={screen} setScreen={setScreen}>
       <Header screen={screen} setScreen={setScreen} />
-      {screen === "dashboard" && <Dashboard leads={leads} deals={deals} tasks={tasks} setScreen={setScreen} />}
-      {screen === "leads" && <Leads leads={filteredLeads} leadForm={leadForm} setLeadForm={setLeadForm} addLead={addLead} filter={filter} setFilter={setFilter} ownerFilter={ownerFilter} setOwnerFilter={setOwnerFilter} sourceFilter={sourceFilter} setSourceFilter={setSourceFilter} tempFilter={tempFilter} setTempFilter={setTempFilter} setSelectedLead={setSelectedLead} openConversation={openConversation} />}
+      {screen === "dashboard" && <DashboardPage leads={leads} deals={deals} tasks={tasks} setScreen={setScreen} />}
+      {screen === "leads" && <LeadsPage leads={filteredLeads} leadForm={leadForm} setLeadForm={setLeadForm} addLead={addLead} filter={filter} setFilter={setFilter} ownerFilter={ownerFilter} setOwnerFilter={setOwnerFilter} sourceFilter={sourceFilter} setSourceFilter={setSourceFilter} tempFilter={tempFilter} setTempFilter={setTempFilter} setSelectedLead={setSelectedLead} openConversation={openConversation} />}
       {screen === "kanban" && <Kanban leads={leads} deals={deals} moveDeal={moveDeal} markWon={markWon} markLost={markLost} openConversation={openConversation} setSelectedLead={setSelectedLead} />}
       {screen === "tasks" && <Tasks tasks={tasks} setTasks={setTasks} leads={leads} taskForm={taskForm} setTaskForm={setTaskForm} addTask={addTask} />}
       {screen === "messages" && <Messages messages={messages} setMessages={setMessages} copyMessage={copyMessage} />}
@@ -115,24 +116,6 @@ export default function Home() {
 function Header({ screen, setScreen }: { screen: Screen, setScreen: (s: Screen) => void }) {
   const titles: Record<Screen, string> = { dashboard: "Dashboard comercial", leads: "Contatos e leads", kanban: "Kanban comercial", tasks: "Tarefas e follow-ups", messages: "Mensagens rápidas", reports: "Relatórios", settings: "Configurações" };
   return <div className="topbar"><div><h1>{titles[screen]}</h1><p>Clack Growth Company • MVP 1 operacional</p></div><div className="top-actions"><button className="btn" onClick={() => setScreen("leads")}>Novo Lead</button><button className="btn primary" onClick={() => setScreen("kanban")}>Abrir Funil</button></div></div>;
-}
-
-function Dashboard({ leads, deals, tasks, setScreen }: { leads: Lead[]; deals: Deal[]; tasks: Task[]; setScreen: (s: Screen) => void }) {
-  const won = deals.filter(d => d.status === "Ganha");
-  const open = deals.filter(d => d.status === "Aberta");
-  const conversion = deals.length ? Math.round(won.length / deals.length * 100) : 0;
-  const metrics = [["Leads novos", leads.length], ["Oportunidades abertas", open.length], ["Vendas fechadas", won.length], ["Valor em negociação", brl(open.reduce((a,d)=>a+d.value,0))], ["Taxa de conversão", `${conversion}%`], ["Tarefas vencidas", tasks.filter(t=>t.status==="Vencida").length]];
-
-  return <>
-    <div className="grid metrics">{metrics.map(([label, value]) => <div className="card metric" key={label}><span>{label}</span><strong>{value}</strong><small>Atualizado agora</small></div>)}</div>
-    <DashboardCharts leads={leads} />
-    <div className="grid two-col"><div className="card pad"><div className="section-title"><h2>Funil por etapa</h2><button className="btn small" onClick={() => setScreen("kanban")}>Ver Kanban</button></div><div className="report-bars">{stages.map(s => { const count = deals.filter(d=>d.stage===s).length; return <div className="bar" key={s}><span><b>{s}</b><b>{count}</b></span><i style={{width: `${Math.max(8, count*22)}%`}} /></div> })}</div></div><div className="card pad"><div className="section-title"><h2>Próximos follow-ups</h2><span>{tasks.length} tarefas</span></div>{tasks.map(t => <div className="timeline-item" key={t.id}><b>{t.title}</b><br/><span className="notice">{t.owner} • {t.due}</span><div style={{ marginTop: 10 }}><Badge style={taskStatusBadgeStyle(t.status)}>{t.status}</Badge></div></div>)}</div></div><div className="card pad"><div className="section-title"><h2>Oportunidades recentes</h2><span>{deals.length} negócios</span></div><div className="table-wrap"><table><thead><tr><th>Oportunidade</th><th>Valor</th><th>Etapa</th><th>Responsável</th><th>Status</th></tr></thead><tbody>{deals.slice(0,7).map(d=><tr key={d.id}><td>{d.title}</td><td>{brl(d.value)}</td><td>{d.stage}</td><td>{d.owner}</td><td><Badge style={opportunityStatusBadgeStyle(d.status)}>{d.status}</Badge></td></tr>)}</tbody></table></div></div>
-  </>;
-}
-
-function Leads(props: { leads: Lead[]; leadForm: any; setLeadForm: any; addLead: () => void; filter: string; setFilter: any; ownerFilter: string; setOwnerFilter: any; sourceFilter: string; setSourceFilter: any; tempFilter: string; setTempFilter: any; setSelectedLead: any; openConversation: (l: Lead) => void }) {
-  const p = props;
-  return <div className="grid"><div className="card pad"><div className="section-title"><h2>Novo lead</h2><span>Nome e WhatsApp são obrigatórios</span></div><div className="form-grid"><input className="input" placeholder="Nome" value={p.leadForm.name} onChange={e=>p.setLeadForm({...p.leadForm, name:e.target.value})}/><input className="input" placeholder="WhatsApp com DDI" value={p.leadForm.phone} onChange={e=>p.setLeadForm({...p.leadForm, phone:e.target.value})}/><input className="input" placeholder="E-mail" value={p.leadForm.email} onChange={e=>p.setLeadForm({...p.leadForm, email:e.target.value})}/><input className="input" placeholder="Cidade" value={p.leadForm.city} onChange={e=>p.setLeadForm({...p.leadForm, city:e.target.value})}/><select className="select" value={p.leadForm.source} onChange={e=>p.setLeadForm({...p.leadForm, source:e.target.value})}>{sources.map(s=><option key={s}>{s}</option>)}</select><select className="select" value={p.leadForm.owner} onChange={e=>p.setLeadForm({...p.leadForm, owner:e.target.value})}>{users.map(u=><option key={u}>{u}</option>)}</select><select className="select" value={p.leadForm.temperature} onChange={e=>p.setLeadForm({...p.leadForm, temperature:e.target.value as Temp})}><option>Quente</option><option>Morno</option><option>Frio</option></select><button className="btn primary" onClick={p.addLead}>Cadastrar lead</button></div></div><div className="card pad"><div className="filters"><input className="input" placeholder="Buscar por nome ou telefone" value={p.filter} onChange={e=>p.setFilter(e.target.value)}/><select className="select" value={p.ownerFilter} onChange={e=>p.setOwnerFilter(e.target.value)}><option>Todos</option>{users.map(u=><option key={u}>{u}</option>)}</select><select className="select" value={p.sourceFilter} onChange={e=>p.setSourceFilter(e.target.value)}><option>Todas</option>{sources.map(s=><option key={s}>{s}</option>)}</select><select className="select" value={p.tempFilter} onChange={e=>p.setTempFilter(e.target.value)}><option>Todas</option><option>Quente</option><option>Morno</option><option>Frio</option></select></div><div className="table-wrap"><table><thead><tr><th>Lead</th><th>WhatsApp</th><th>Cidade</th><th>Origem</th><th>Responsável</th><th>Temp.</th><th>Status</th><th>Ações</th></tr></thead><tbody>{p.leads.map(l=><tr key={l.id}><td><div className="client-line"><div className="avatar">{l.name[0]}</div><div><b>{l.name}</b><br/><span className="notice">{l.email}</span></div></div></td><td>{l.phone}</td><td>{l.city}</td><td>{l.source}</td><td>{l.owner}</td><td><Badge style={tempBadgeStyle(l.temperature)}>{l.temperature}</Badge></td><td><Badge style={leadStatusBadgeStyle(l.status)}>{l.status}</Badge></td><td><button className="btn small" onClick={()=>p.setSelectedLead(l)}>Ficha</button> <button className="btn small primary" onClick={()=>p.openConversation(l)}>Conversa</button></td></tr>)}</tbody></table></div></div></div>;
 }
 
 function Kanban({ leads, deals, moveDeal, markWon, markLost, openConversation, setSelectedLead }: { leads: Lead[]; deals: Deal[]; moveDeal: (id:number,s:Stage)=>void; markWon:(id:number)=>void; markLost:(id:number)=>void; openConversation:(l:Lead)=>void; setSelectedLead:any }) {
