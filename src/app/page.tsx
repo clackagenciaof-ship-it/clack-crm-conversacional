@@ -89,6 +89,7 @@ export default function Home() {
           openConversation={crm.openConversation}
           copyMessage={crm.copyMessage}
           updateLead={crm.updateLead}
+          addLeadNote={crm.addLeadNote}
         />
       )}
     </AppShell>
