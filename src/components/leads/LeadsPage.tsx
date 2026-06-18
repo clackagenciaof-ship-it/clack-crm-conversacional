@@ -28,12 +28,19 @@ type LeadsPageProps = {
   setTempFilter: (filter: string) => void;
   setSelectedLead: (lead: Lead) => void;
   openConversation: (lead: Lead) => void;
+  removeLead: (lead: Lead) => void | Promise<void>;
 };
 
 const users = CRM_USERS.map((user) => user.name);
 
 export function LeadsPage(props: LeadsPageProps) {
   const p = props;
+
+  async function handleDeleteLead(lead: Lead) {
+    const confirmed = window.confirm(`Excluir o cadastro de ${lead.name}? Essa ação também remove oportunidades e tarefas vinculadas.`);
+    if (!confirmed) return;
+    await p.removeLead(lead);
+  }
 
   return (
     <div className="grid">
@@ -116,7 +123,8 @@ export function LeadsPage(props: LeadsPageProps) {
                   <td><Badge style={leadStatusBadgeStyle(lead.status)}>{lead.status}</Badge></td>
                   <td>
                     <button className="btn small" onClick={() => p.setSelectedLead(lead)}>Ficha</button>{' '}
-                    <button className="btn small primary" onClick={() => p.openConversation(lead)}>Conversa</button>
+                    <button className="btn small primary" onClick={() => p.openConversation(lead)}>Conversa</button>{' '}
+                    <button className="btn small danger" onClick={() => handleDeleteLead(lead)}>Excluir</button>
                   </td>
                 </tr>
               ))}
