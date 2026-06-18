@@ -16,7 +16,7 @@ import { useCrmMvpState } from "@/hooks/useCrmMvpState";
 export default function Home() {
   const crm = useCrmMvpState();
 
-  if (!crm.logged) return <Login onLogin={() => crm.setLogged(true)} />;
+  if (!crm.logged) return <Login onLogin={crm.login} />;
 
   return (
     <AppShell screen={crm.screen} setScreen={crm.setScreen}>
