@@ -14,9 +14,6 @@ function getClientOrThrow() {
     throw new Error('Supabase não configurado. Defina NEXT_PUBLIC_SUPABASE_URL e NEXT_PUBLIC_SUPABASE_ANON_KEY.');
   }
 
-  // Mantemos os tipos dos payloads do CRM, mas flexibilizamos o client neste MVP.
-  // Isso evita conflito de overloads do supabase-js enquanto a tipagem gerada oficial
-  // ainda não vem direto do projeto Supabase real.
   return supabase as any;
 }
 
@@ -180,6 +177,16 @@ export async function updateTask(id: string, payload: Database['public']['Tables
 
   if (error) throw error;
   return data;
+}
+
+export async function deleteTask(id: string) {
+  const supabase = getClientOrThrow();
+  const { error } = await supabase
+    .from('tasks')
+    .delete()
+    .eq('id', id);
+
+  if (error) throw error;
 }
 
 export async function listQuickMessages(companyId: string) {
