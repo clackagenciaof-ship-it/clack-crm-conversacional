@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react';
 import { demoLeads, demoOpportunities, demoQuickMessages, demoTasks } from '@/data/demo-data';
 import { formatCurrencyBRL as brl } from '@/lib/crm/formatters';
+import { signInWithSupabaseOrDemo, signOutSupabase } from '@/lib/supabase/auth';
 import { useCrmRealLoader } from '@/hooks/useCrmRealLoader';
 import type { Lead, LeadTemperature, Opportunity, PipelineStage, QuickMessage, Screen, Task } from '@/types/crm';
 
@@ -46,6 +47,7 @@ const initialTaskForm: TaskForm = {
 
 export function useCrmMvpState() {
   const [logged, setLogged] = useState(false);
+  const [loginNotice, setLoginNotice] = useState('');
   const [screen, setScreen] = useState<Screen>('dashboard');
   const [leads, setLeads] = useState<Lead[]>(demoLeads);
   const [deals, setDeals] = useState<Opportunity[]>(demoOpportunities);
@@ -66,6 +68,25 @@ export function useCrmMvpState() {
     (sourceFilter === 'Todas' || lead.source === sourceFilter) &&
     (tempFilter === 'Todas' || lead.temperature === tempFilter)
   ), [leads, filter, ownerFilter, sourceFilter, tempFilter]);
+
+  async function login(email: string, password: string) {
+    const result = await signInWithSupabaseOrDemo(email, password);
+    setLoginNotice(result.message);
+
+    if (!result.ok) {
+      alert(result.message);
+      return;
+    }
+
+    setLogged(true);
+  }
+
+  async function logout() {
+    await signOutSupabase();
+    setLogged(false);
+    setScreen('dashboard');
+    setSelectedLead(null);
+  }
 
   function addHistory(leadId: number, text: string) {
     setLeads((currentLeads) => currentLeads.map((lead) =>
@@ -163,6 +184,9 @@ export function useCrmMvpState() {
   return {
     logged,
     setLogged,
+    login,
+    logout,
+    loginNotice,
     screen,
     setScreen,
     leads,
