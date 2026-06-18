@@ -49,6 +49,18 @@ export async function findStageIdByName(companyId: string, stageName: string) {
   return data?.id || null;
 }
 
+export async function listPipelineStages(companyId: string) {
+  const supabase = getClientOrThrow();
+  const { data, error } = await supabase
+    .from('pipeline_stages')
+    .select('id, name, position')
+    .eq('company_id', companyId)
+    .order('position', { ascending: true });
+
+  if (error) throw error;
+  return data as Array<{ id: string; name: string; position: number }>;
+}
+
 export async function listContacts(companyId: string) {
   const supabase = getClientOrThrow();
   const { data, error } = await supabase
@@ -77,7 +89,7 @@ export async function listOpportunities(companyId: string) {
   const supabase = getClientOrThrow();
   const { data, error } = await supabase
     .from('opportunities')
-    .select('*, pipeline_stages(name)')
+    .select('*')
     .eq('company_id', companyId)
     .order('created_at', { ascending: false });
 
