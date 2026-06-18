@@ -2,12 +2,26 @@ import type { Lead, LeadStatus, LeadTemperature, Opportunity, OpportunityStatus,
 import type { Database } from '@/lib/supabase/database.types';
 
 type ContactRow = Database['public']['Tables']['contacts']['Row'];
-type OpportunityRow = Database['public']['Tables']['opportunities']['Row'];
+type OpportunityRow = Database['public']['Tables']['opportunities']['Row'] & {
+  pipeline_stages?: { name?: string | null } | null;
+};
 type TaskRow = Database['public']['Tables']['tasks']['Row'];
 type QuickMessageRow = Database['public']['Tables']['quick_messages']['Row'];
 
+const pipelineStages: PipelineStage[] = [
+  'Novo Lead',
+  'Primeiro Contato',
+  'Qualificação',
+  'Apresentação Enviada',
+  'Proposta Enviada',
+  'Negociação',
+  'Fechado',
+  'Perdido'
+];
+
 function numericIdFromUuid(uuid: string, fallback: number) {
-  return Number.parseInt(uuid.replace(/\D/g, '').slice(0, 10), 10) || fallback;
+  // Usamos o índice visual como base para evitar colisões numéricas entre UUIDs.
+  return fallback;
 }
 
 function normalizeTemperature(value: string | null | undefined): LeadTemperature {
@@ -25,7 +39,8 @@ function normalizeOpportunityStatus(value: string | null | undefined): Opportuni
   return 'Aberta';
 }
 
-function normalizeOpportunityStage(status: OpportunityStatus): PipelineStage {
+function normalizeOpportunityStage(status: OpportunityStatus, stageName?: string | null): PipelineStage {
+  if (stageName && pipelineStages.includes(stageName as PipelineStage)) return stageName as PipelineStage;
   if (status === 'Ganha') return 'Fechado';
   if (status === 'Perdida') return 'Perdido';
   return 'Novo Lead';
@@ -39,6 +54,22 @@ function normalizeTaskStatus(value: string | null | undefined): TaskStatus {
 function normalizePriority(value: string | null | undefined): TaskPriority {
   if (value === 'Baixa' || value === 'Alta') return value;
   return 'Média';
+}
+
+function formatDue(value: string | null | undefined, fallback?: string | null) {
+  if (fallback?.startsWith('Prazo informado: ')) return fallback.replace('Prazo informado: ', '');
+  if (!value) return fallback || 'Sem prazo';
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+
+  return date.toLocaleString('pt-BR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
 }
 
 export function mapContactRowToLead(row: ContactRow, index = 0): Lead {
@@ -61,6 +92,7 @@ export function mapContactRowToLead(row: ContactRow, index = 0): Lead {
 
 export function mapOpportunityRowToOpportunity(row: OpportunityRow, leadId: number, index = 0): Opportunity {
   const status = normalizeOpportunityStatus(row.status);
+  const stageName = row.pipeline_stages?.name;
 
   return {
     id: numericIdFromUuid(row.id, index + 1),
@@ -68,7 +100,7 @@ export function mapOpportunityRowToOpportunity(row: OpportunityRow, leadId: numb
     leadId,
     title: row.title,
     value: row.value || 0,
-    stage: normalizeOpportunityStage(status),
+    stage: normalizeOpportunityStage(status, stageName),
     owner: 'Equipe',
     source: 'Banco real',
     temperature: normalizeTemperature(row.temperature),
@@ -88,7 +120,7 @@ export function mapTaskRowToTask(row: TaskRow, leadId: number, index = 0): Task 
     title: row.title,
     type: row.type || 'Outro',
     priority: normalizePriority(row.priority),
-    due: row.due_at || row.description || 'Sem prazo',
+    due: formatDue(row.due_at, row.description),
     status: normalizeTaskStatus(row.status)
   };
 }
