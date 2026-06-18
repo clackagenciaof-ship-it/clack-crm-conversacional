@@ -20,7 +20,7 @@ export default function Home() {
 
   return (
     <AppShell screen={crm.screen} setScreen={crm.setScreen}>
-      <Header screen={crm.screen} setScreen={crm.setScreen} dataNotice={crm.dataNotice} loadingRealData={crm.loadingRealData} />
+      <Header screen={crm.screen} setScreen={crm.setScreen} dataNotice={crm.dataNotice} loadingRealData={crm.loadingRealData} onLogout={crm.logout} />
 
       {crm.screen === "dashboard" && (
         <DashboardPage leads={crm.leads} deals={crm.deals} tasks={crm.tasks} setScreen={crm.setScreen} />
