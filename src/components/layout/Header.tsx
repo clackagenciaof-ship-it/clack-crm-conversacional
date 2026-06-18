@@ -6,6 +6,7 @@ type HeaderProps = {
   setScreen: (screen: Screen) => void;
   dataNotice?: string;
   loadingRealData?: boolean;
+  onLogout?: () => void;
 };
 
 const titles: Record<Screen, string> = {
@@ -18,7 +19,7 @@ const titles: Record<Screen, string> = {
   settings: 'Configurações'
 };
 
-export function Header({ screen, setScreen, dataNotice, loadingRealData }: HeaderProps) {
+export function Header({ screen, setScreen, dataNotice, loadingRealData, onLogout }: HeaderProps) {
   const dataModeLabel = loadingRealData ? 'Carregando dados...' : dataNotice || getCrmDataModeLabel();
 
   return (
@@ -30,6 +31,7 @@ export function Header({ screen, setScreen, dataNotice, loadingRealData }: Heade
       <div className="top-actions">
         <button className="btn" onClick={() => setScreen('leads')}>Novo Lead</button>
         <button className="btn primary" onClick={() => setScreen('kanban')}>Abrir Funil</button>
+        {onLogout && <button className="btn" onClick={onLogout}>Sair</button>}
       </div>
     </div>
   );
