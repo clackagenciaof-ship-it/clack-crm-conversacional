@@ -1,4 +1,4 @@
-import { getCurrentProfile, listContacts, listOpportunities, listPipelineStages, listQuickMessages, listTasks } from '@/lib/supabase/crm-repository';
+import { getCurrentProfile, listActivityLogs, listContacts, listOpportunities, listPipelineStages, listQuickMessages, listTasks } from '@/lib/supabase/crm-repository';
 import { mapContactRowToLead, mapOpportunityRowToOpportunity, mapQuickMessageRowToQuickMessage, mapTaskRowToTask } from '@/lib/crm/supabase-mappers';
 import type { Database } from '@/lib/supabase/database.types';
 import type { Lead, Opportunity, QuickMessage, Task } from '@/types/crm';
@@ -9,6 +9,7 @@ type OpportunityRow = Database['public']['Tables']['opportunities']['Row'] & {
 };
 type TaskRow = Database['public']['Tables']['tasks']['Row'];
 type QuickMessageRow = Database['public']['Tables']['quick_messages']['Row'];
+type ActivityRow = Database['public']['Tables']['activity_logs']['Row'];
 
 type CrmSnapshot = {
   leads: Lead[];
@@ -17,6 +18,15 @@ type CrmSnapshot = {
   messages: QuickMessage[];
   notice: string;
 };
+
+function formatActivity(activity: ActivityRow) {
+  const date = new Date(activity.created_at);
+  const formattedDate = Number.isNaN(date.getTime())
+    ? activity.created_at
+    : date.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+  return `${formattedDate} — ${activity.description}`;
+}
 
 export async function loadCrmSnapshotFromSupabase(): Promise<CrmSnapshot | null> {
   const profile = await getCurrentProfile();
@@ -38,8 +48,21 @@ export async function loadCrmSnapshotFromSupabase(): Promise<CrmSnapshot | null>
   const stageRows = await listPipelineStages(companyId);
   const taskRows = (await listTasks(companyId)) as TaskRow[];
   const messageRows = (await listQuickMessages(companyId)) as QuickMessageRow[];
+  const activityRows = await listActivityLogs(companyId);
 
-  const leads = contactRows.map((contact, index) => mapContactRowToLead(contact, index));
+  const historyByContactId = new Map<string, string[]>();
+  activityRows.forEach((activity) => {
+    if (!activity.contact_id) return;
+    const currentHistory = historyByContactId.get(activity.contact_id) || [];
+    historyByContactId.set(activity.contact_id, [...currentHistory, formatActivity(activity)]);
+  });
+
+  const leads = contactRows.map((contact, index) => {
+    const lead = mapContactRowToLead(contact, index);
+    const realHistory = historyByContactId.get(contact.id) || [];
+    return { ...lead, history: [...realHistory, ...lead.history] };
+  });
+
   const leadIdByContactId = new Map<string, number>(
     contactRows.map((contact, index) => [contact.id, leads[index]?.id || index + 1])
   );
@@ -51,7 +74,7 @@ export async function loadCrmSnapshotFromSupabase(): Promise<CrmSnapshot | null>
   );
 
   const deals = opportunityRows.map((opportunity, index) => {
-    const stageName = opportunity.stage_id ? stageNameById.get(opportunity.stage_id) : undefined;
+    const stageName = opportunity.stage_name || (opportunity.stage_id ? stageNameById.get(opportunity.stage_id) : undefined);
     return mapOpportunityRowToOpportunity(
       { ...opportunity, pipeline_stages: { name: stageName || null } },
       leadIdByContactId.get(opportunity.contact_id) || index + 1,
