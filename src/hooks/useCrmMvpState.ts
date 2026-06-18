@@ -4,9 +4,10 @@ import { useEffect, useMemo, useState } from 'react';
 import { demoLeads, demoOpportunities, demoQuickMessages, demoTasks } from '@/data/demo-data';
 import { formatCurrencyBRL as brl } from '@/lib/crm/formatters';
 import { createRealLeadAndOpportunity, createRealTask, persistOpportunityLost, persistOpportunityStage, persistOpportunityWon, persistTaskCompleted, statusFromStage } from '@/lib/crm/real-persistence';
+import { persistLeadActivity, removeRealLead, updateRealLead } from '@/lib/crm/lead-persistence';
 import { hasActiveSupabaseSession, signInWithSupabaseOrDemo, signOutSupabase } from '@/lib/supabase/auth';
 import { useCrmRealLoader } from '@/hooks/useCrmRealLoader';
-import type { Lead, LeadTemperature, Opportunity, PipelineStage, QuickMessage, Screen, Task } from '@/types/crm';
+import type { Lead, LeadStatus, LeadTemperature, Opportunity, PipelineStage, QuickMessage, Screen, Task } from '@/types/crm';
 
 type LeadForm = {
   name: string;
@@ -16,6 +17,10 @@ type LeadForm = {
   source: string;
   owner: string;
   temperature: LeadTemperature;
+};
+
+type LeadEditForm = LeadForm & {
+  status: LeadStatus;
 };
 
 type TaskForm = {
@@ -166,6 +171,34 @@ export function useCrmMvpState() {
     setLeadForm(initialLeadForm);
   }
 
+  async function updateLead(lead: Lead, form: LeadEditForm) {
+    try {
+      const updatedLead = await updateRealLead(lead, form, leads.findIndex((item) => item.id === lead.id) + 1);
+      const fallbackLead = updatedLead || { ...lead, ...form, history: ['Dados atualizados no CRM.', ...lead.history] };
+      setLeads((currentLeads) => currentLeads.map((item) => item.id === lead.id ? fallbackLead : item));
+      setSelectedLead(fallbackLead);
+      return;
+    } catch (error) {
+      console.error('Falha ao editar lead real. Atualizando localmente.', error);
+      const fallbackLead = { ...lead, ...form, history: ['Dados atualizados localmente.', ...lead.history] };
+      setLeads((currentLeads) => currentLeads.map((item) => item.id === lead.id ? fallbackLead : item));
+      setSelectedLead(fallbackLead);
+    }
+  }
+
+  async function removeLead(lead: Lead) {
+    try {
+      await removeRealLead(lead);
+    } catch (error) {
+      console.error('Falha ao remover lead real. Removendo localmente.', error);
+    }
+
+    setLeads((currentLeads) => currentLeads.filter((item) => item.id !== lead.id));
+    setDeals((currentDeals) => currentDeals.filter((deal) => deal.leadId !== lead.id));
+    setTasks((currentTasks) => currentTasks.filter((task) => task.leadId !== lead.id));
+    setSelectedLead(null);
+  }
+
   async function moveDeal(id: number, stage: PipelineStage) {
     const nextStatus = statusFromStage(stage);
     setDeals((currentDeals) => currentDeals.map((deal) =>
@@ -222,12 +255,16 @@ export function useCrmMvpState() {
 
   function openConversation(lead: Lead) {
     addHistory(lead.id, 'Conversa externa aberta pelo CRM');
+    persistLeadActivity(lead, 'Conversa externa aberta pelo CRM.', 'conversation_opened').catch(console.error);
     window.open(`https://wa.me/${lead.phone}`, '_blank');
   }
 
   function copyMessage(msg: QuickMessage, lead?: Lead) {
     navigator.clipboard?.writeText(msg.text);
-    if (lead) addHistory(lead.id, `Mensagem rápida copiada: ${msg.title}`);
+    if (lead) {
+      addHistory(lead.id, `Mensagem rápida copiada: ${msg.title}`);
+      persistLeadActivity(lead, `Mensagem rápida copiada: ${msg.title}.`, 'quick_message').catch(console.error);
+    }
     alert('Mensagem copiada.');
   }
 
@@ -299,6 +336,8 @@ export function useCrmMvpState() {
     loadingRealData,
     dataNotice,
     addLead,
+    updateLead,
+    removeLead,
     moveDeal,
     markWon,
     markLost,
