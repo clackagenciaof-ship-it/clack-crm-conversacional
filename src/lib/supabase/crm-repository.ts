@@ -1,6 +1,7 @@
 import { createSupabaseBrowserClient } from './client';
 import type { Database } from './database.types';
 
+export type ProfileRow = Database['public']['Tables']['profiles']['Row'];
 type ContactInsert = Database['public']['Tables']['contacts']['Insert'];
 type OpportunityInsert = Database['public']['Tables']['opportunities']['Insert'];
 type TaskInsert = Database['public']['Tables']['tasks']['Insert'];
@@ -32,7 +33,20 @@ export async function getCurrentProfile() {
     .single();
 
   if (error) throw error;
-  return data;
+  return data as ProfileRow;
+}
+
+export async function findStageIdByName(companyId: string, stageName: string) {
+  const supabase = getClientOrThrow();
+  const { data, error } = await supabase
+    .from('pipeline_stages')
+    .select('id')
+    .eq('company_id', companyId)
+    .eq('name', stageName)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data?.id || null;
 }
 
 export async function listContacts(companyId: string) {
