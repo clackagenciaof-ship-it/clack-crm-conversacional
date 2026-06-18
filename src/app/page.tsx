@@ -42,6 +42,7 @@ export default function Home() {
           setTempFilter={crm.setTempFilter}
           setSelectedLead={crm.setSelectedLead}
           openConversation={crm.openConversation}
+          removeLead={crm.removeLead}
         />
       )}
 
