@@ -77,7 +77,7 @@ export async function listOpportunities(companyId: string) {
   const supabase = getClientOrThrow();
   const { data, error } = await supabase
     .from('opportunities')
-    .select('*')
+    .select('*, pipeline_stages(name)')
     .eq('company_id', companyId)
     .order('created_at', { ascending: false });
 
