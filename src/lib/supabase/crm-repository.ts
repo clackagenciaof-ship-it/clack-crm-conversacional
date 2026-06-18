@@ -213,6 +213,29 @@ export async function createQuickMessage(payload: QuickMessageInsert) {
   return data;
 }
 
+export async function updateQuickMessage(id: string, payload: Database['public']['Tables']['quick_messages']['Update']) {
+  const supabase = getClientOrThrow();
+  const { data, error } = await supabase
+    .from('quick_messages')
+    .update(payload)
+    .eq('id', id)
+    .select('*')
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+export async function deleteQuickMessage(id: string) {
+  const supabase = getClientOrThrow();
+  const { error } = await supabase
+    .from('quick_messages')
+    .delete()
+    .eq('id', id);
+
+  if (error) throw error;
+}
+
 export async function listActivityLogs(companyId: string) {
   const supabase = getClientOrThrow();
   const { data, error } = await supabase
