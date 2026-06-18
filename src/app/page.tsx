@@ -66,6 +66,8 @@ export default function Home() {
           setTaskForm={crm.setTaskForm}
           addTask={crm.addTask}
           completeTask={crm.completeTask}
+          updateTaskItem={crm.updateTaskItem}
+          removeTask={crm.removeTask}
         />
       )}
 
