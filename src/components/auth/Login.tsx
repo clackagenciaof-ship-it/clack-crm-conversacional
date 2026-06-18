@@ -1,8 +1,26 @@
+"use client";
+
+import { useState } from 'react';
+
 type LoginProps = {
-  onLogin: () => void;
+  onLogin: (email: string, password: string) => Promise<void> | void;
 };
 
 export function Login({ onLogin }: LoginProps) {
+  const [email, setEmail] = useState('will@clackcrm.com.br');
+  const [password, setPassword] = useState('demo1234');
+  const [loading, setLoading] = useState(false);
+
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setLoading(true);
+    try {
+      await onLogin(email, password);
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
     <section className="login">
       <div className="login-card">
@@ -28,24 +46,18 @@ export function Login({ onLogin }: LoginProps) {
           </div>
         </div>
 
-        <form
-          className="login-form"
-          onSubmit={(event) => {
-            event.preventDefault();
-            onLogin();
-          }}
-        >
+        <form className="login-form" onSubmit={handleSubmit}>
           <h2>Entrar no CRM</h2>
-          <p className="notice">Modo MVP: use qualquer e-mail e senha para acessar a demonstração funcional.</p>
+          <p className="notice">Modo MVP: se o Supabase não estiver configurado, qualquer e-mail e senha liberam a demonstração funcional.</p>
           <label>
             E-mail
-            <input className="input" type="email" placeholder="will@clackcrm.com.br" />
+            <input className="input" type="email" placeholder="will@clackcrm.com.br" value={email} onChange={(event) => setEmail(event.target.value)} />
           </label>
           <label>
             Senha
-            <input className="input" type="password" placeholder="••••••••" />
+            <input className="input" type="password" placeholder="••••••••" value={password} onChange={(event) => setPassword(event.target.value)} />
           </label>
-          <button className="btn primary">Entrar</button>
+          <button className="btn primary" disabled={loading}>{loading ? 'Entrando...' : 'Entrar'}</button>
           <button type="button" className="btn ghost">Esqueci minha senha</button>
         </form>
       </div>
