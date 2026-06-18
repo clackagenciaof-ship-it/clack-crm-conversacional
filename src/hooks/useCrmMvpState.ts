@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { demoLeads, demoOpportunities, demoQuickMessages, demoTasks } from '@/data/demo-data';
 import { formatCurrencyBRL as brl } from '@/lib/crm/formatters';
+import { createRealLeadAndOpportunity, createRealTask, persistOpportunityLost, persistOpportunityStage, persistOpportunityWon, persistTaskCompleted, statusFromStage } from '@/lib/crm/real-persistence';
 import { hasActiveSupabaseSession, signInWithSupabaseOrDemo, signOutSupabase } from '@/lib/supabase/auth';
 import { useCrmRealLoader } from '@/hooks/useCrmRealLoader';
 import type { Lead, LeadTemperature, Opportunity, PipelineStage, QuickMessage, Screen, Task } from '@/types/crm';
@@ -117,9 +118,22 @@ export function useCrmMvpState() {
     ));
   }
 
-  function addLead() {
+  async function addLead() {
     if (!leadForm.name.trim() || !leadForm.phone.trim()) return alert('Nome e WhatsApp são obrigatórios.');
     if (leads.some((lead) => lead.phone === leadForm.phone)) return alert('Possível duplicidade: já existe um lead com esse WhatsApp.');
+
+    try {
+      const realResult = await createRealLeadAndOpportunity(leadForm, leads.length, deals.length);
+      if (realResult) {
+        setLeads([realResult.lead, ...leads]);
+        setDeals([realResult.deal, ...deals]);
+        setLeadForm(initialLeadForm);
+        return;
+      }
+    } catch (error) {
+      console.error('Falha ao salvar lead real. Usando fallback local.', error);
+      alert('Não foi possível salvar no Supabase agora. O lead ficará localmente nesta sessão.');
+    }
 
     const id = Date.now();
     const newLead: Lead = {
@@ -152,28 +166,41 @@ export function useCrmMvpState() {
     setLeadForm(initialLeadForm);
   }
 
-  function moveDeal(id: number, stage: PipelineStage) {
+  async function moveDeal(id: number, stage: PipelineStage) {
+    const nextStatus = statusFromStage(stage);
     setDeals((currentDeals) => currentDeals.map((deal) =>
-      deal.id === id
-        ? { ...deal, stage, status: stage === 'Fechado' ? 'Ganha' : stage === 'Perdido' ? 'Perdida' : 'Aberta' }
-        : deal
+      deal.id === id ? { ...deal, stage, status: nextStatus } : deal
     ));
+
     const deal = deals.find((item) => item.id === id);
     if (deal) addHistory(deal.leadId, `Oportunidade movida para ${stage}`);
+
+    try {
+      if (deal) await persistOpportunityStage(deal, stage);
+    } catch (error) {
+      console.error('Falha ao persistir mudança de etapa.', error);
+    }
   }
 
-  function markWon(id: number) {
+  async function markWon(id: number) {
     const value = Number(prompt('Valor final da venda em R$:', '497'));
     if (!value) return alert('Venda ganha exige valor final.');
 
     setDeals((currentDeals) => currentDeals.map((deal) =>
       deal.id === id ? { ...deal, value, stage: 'Fechado', status: 'Ganha' } : deal
     ));
+
     const deal = deals.find((item) => item.id === id);
     if (deal) addHistory(deal.leadId, `Venda ganha no valor de ${brl(value)}`);
+
+    try {
+      if (deal) await persistOpportunityWon(deal, value);
+    } catch (error) {
+      console.error('Falha ao persistir venda ganha.', error);
+    }
   }
 
-  function markLost(id: number) {
+  async function markLost(id: number) {
     const reason = prompt('Motivo da perda: sem orçamento, sem interesse, concorrente, preço alto ou outro?');
     if (!reason) return alert('Venda perdida exige motivo.');
 
@@ -182,8 +209,15 @@ export function useCrmMvpState() {
         ? { ...deal, stage: 'Perdido', status: 'Perdida', notes: `${deal.notes} Motivo da perda: ${reason}.` }
         : deal
     ));
+
     const deal = deals.find((item) => item.id === id);
     if (deal) addHistory(deal.leadId, `Venda perdida. Motivo: ${reason}`);
+
+    try {
+      if (deal) await persistOpportunityLost(deal, reason);
+    } catch (error) {
+      console.error('Falha ao persistir venda perdida.', error);
+    }
   }
 
   function openConversation(lead: Lead) {
@@ -197,11 +231,40 @@ export function useCrmMvpState() {
     alert('Mensagem copiada.');
   }
 
-  function addTask() {
+  async function addTask() {
     if (!taskForm.title.trim()) return alert('A tarefa precisa de título.');
+
+    const selectedTaskLead = leads.find((lead) => lead.id === Number(taskForm.leadId));
+
+    try {
+      const realTask = await createRealTask(taskForm, selectedTaskLead, tasks.length);
+      if (realTask) {
+        setTasks([realTask, ...tasks]);
+        addHistory(Number(taskForm.leadId), `Tarefa criada: ${taskForm.title}`);
+        setTaskForm(initialTaskForm);
+        return;
+      }
+    } catch (error) {
+      console.error('Falha ao salvar tarefa real. Usando fallback local.', error);
+      alert('Não foi possível salvar a tarefa no Supabase agora. Ela ficará localmente nesta sessão.');
+    }
+
     setTasks([{ id: Date.now(), ...taskForm, status: 'Pendente' }, ...tasks]);
     addHistory(Number(taskForm.leadId), `Tarefa criada: ${taskForm.title}`);
     setTaskForm(initialTaskForm);
+  }
+
+  async function completeTask(taskId: number) {
+    const task = tasks.find((item) => item.id === taskId);
+    setTasks((currentTasks) => currentTasks.map((item) =>
+      item.id === taskId ? { ...item, status: 'Concluída' } : item
+    ));
+
+    try {
+      await persistTaskCompleted(task);
+    } catch (error) {
+      console.error('Falha ao persistir conclusão da tarefa.', error);
+    }
   }
 
   return {
@@ -241,6 +304,7 @@ export function useCrmMvpState() {
     markLost,
     openConversation,
     copyMessage,
-    addTask
+    addTask,
+    completeTask
   };
 }
