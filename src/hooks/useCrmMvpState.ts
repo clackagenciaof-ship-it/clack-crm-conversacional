@@ -3,11 +3,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { demoLeads, demoOpportunities, demoQuickMessages, demoTasks } from '@/data/demo-data';
 import { formatCurrencyBRL as brl } from '@/lib/crm/formatters';
-import { createRealLeadAndOpportunity, createRealTask, persistOpportunityLost, persistOpportunityStage, persistOpportunityWon, persistTaskCompleted, removeRealTask, statusFromStage, updateRealTask } from '@/lib/crm/real-persistence';
+import { createRealLeadAndOpportunity, createRealTask, persistOpportunityLost, persistOpportunityStage, persistOpportunityWon, persistTaskCompleted, removeRealTask, statusFromStage, updateRealOpportunity, updateRealTask } from '@/lib/crm/real-persistence';
 import { persistLeadActivity, removeRealLead, updateRealLead } from '@/lib/crm/lead-persistence';
 import { hasActiveSupabaseSession, signInWithSupabaseOrDemo, signOutSupabase } from '@/lib/supabase/auth';
 import { useCrmRealLoader } from '@/hooks/useCrmRealLoader';
-import type { Lead, LeadStatus, LeadTemperature, Opportunity, PipelineStage, QuickMessage, Screen, Task, TaskStatus } from '@/types/crm';
+import type { Lead, LeadStatus, LeadTemperature, Opportunity, OpportunityStatus, PipelineStage, QuickMessage, Screen, Task, TaskStatus } from '@/types/crm';
 
 type LeadForm = {
   name: string;
@@ -21,6 +21,18 @@ type LeadForm = {
 
 type LeadEditForm = LeadForm & {
   status: LeadStatus;
+};
+
+type OpportunityEditForm = {
+  title: string;
+  value: number;
+  stage: PipelineStage;
+  owner: string;
+  source: string;
+  temperature: LeadTemperature;
+  nextTask: string;
+  status: OpportunityStatus;
+  notes: string;
 };
 
 type TaskForm = {
@@ -219,6 +231,19 @@ export function useCrmMvpState() {
     }
   }
 
+  async function updateDeal(deal: Opportunity, form: OpportunityEditForm) {
+    try {
+      const updatedDeal = await updateRealOpportunity(deal, form, deals.findIndex((item) => item.id === deal.id) + 1);
+      const fallbackDeal = updatedDeal || { ...deal, ...form };
+      setDeals((currentDeals) => currentDeals.map((item) => item.id === deal.id ? fallbackDeal : item));
+      addHistory(deal.leadId, `Oportunidade atualizada: ${form.title}`);
+      return;
+    } catch (error) {
+      console.error('Falha ao editar oportunidade real. Atualizando localmente.', error);
+      setDeals((currentDeals) => currentDeals.map((item) => item.id === deal.id ? { ...deal, ...form } : item));
+    }
+  }
+
   async function markWon(id: number) {
     const value = Number(prompt('Valor final da venda em R$:', '497'));
     if (!value) return alert('Venda ganha exige valor final.');
@@ -384,6 +409,7 @@ export function useCrmMvpState() {
     updateLead,
     removeLead,
     moveDeal,
+    updateDeal,
     markWon,
     markLost,
     openConversation,
