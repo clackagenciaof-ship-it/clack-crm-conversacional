@@ -268,6 +268,21 @@ export function useCrmMvpState() {
     alert('Mensagem copiada.');
   }
 
+  async function addLeadNote(lead: Lead, note: string) {
+    const trimmedNote = note.trim();
+    if (!trimmedNote) return;
+
+    const entry = `Anotação: ${trimmedNote}`;
+    addHistory(lead.id, entry);
+    setSelectedLead({ ...lead, lastInteraction: 'agora', history: [entry, ...lead.history] });
+
+    try {
+      await persistLeadActivity(lead, entry, 'manual_note');
+    } catch (error) {
+      console.error('Falha ao salvar anotação no histórico real.', error);
+    }
+  }
+
   async function addTask() {
     if (!taskForm.title.trim()) return alert('A tarefa precisa de título.');
 
@@ -343,6 +358,7 @@ export function useCrmMvpState() {
     markLost,
     openConversation,
     copyMessage,
+    addLeadNote,
     addTask,
     completeTask
   };
