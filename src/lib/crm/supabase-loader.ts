@@ -59,10 +59,14 @@ export async function loadCrmSnapshotFromSupabase(): Promise<CrmSnapshot | null>
     );
   });
 
-  const tasks = taskRows.map((task, index) => ({
-    ...mapTaskRowToTask(task, task.contact_id ? leadIdByContactId.get(task.contact_id) || index + 1 : index + 1, index),
-    leadName: task.contact_id ? leadNameByContactId.get(task.contact_id) || 'Lead não identificado' : 'Sem lead vinculado'
-  }));
+  const tasks = taskRows.map((task, index) => {
+    const leadName = task.contact_id ? leadNameByContactId.get(task.contact_id) || 'Lead não identificado' : 'Sem lead vinculado';
+    return {
+      ...mapTaskRowToTask(task, task.contact_id ? leadIdByContactId.get(task.contact_id) || index + 1 : index + 1, index),
+      leadName,
+      owner: `${leadName} / Equipe`
+    };
+  });
 
   const messages = messageRows.map((message, index) => mapQuickMessageRowToQuickMessage(message, index));
 
