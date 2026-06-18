@@ -60,11 +60,11 @@ export default function Home() {
       {crm.screen === "tasks" && (
         <TasksPage
           tasks={crm.tasks}
-          setTasks={crm.setTasks}
           leads={crm.leads}
           taskForm={crm.taskForm}
           setTaskForm={crm.setTaskForm}
           addTask={crm.addTask}
+          completeTask={crm.completeTask}
         />
       )}
 
