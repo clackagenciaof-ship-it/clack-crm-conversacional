@@ -1,7 +1,7 @@
 import { getCrmDataMode } from '@/lib/crm/data-mode';
 import { mapContactRowToLead, mapOpportunityRowToOpportunity, mapTaskRowToTask } from '@/lib/crm/supabase-mappers';
-import { createActivityLog, createContact, createOpportunity, createTask, findStageIdByName, getCurrentProfile, updateOpportunity, updateTask } from '@/lib/supabase/crm-repository';
-import type { Lead, LeadTemperature, Opportunity, OpportunityStatus, PipelineStage, Task } from '@/types/crm';
+import { createActivityLog, createContact, createOpportunity, createTask, deleteTask, findStageIdByName, getCurrentProfile, updateOpportunity, updateTask } from '@/lib/supabase/crm-repository';
+import type { Lead, LeadTemperature, Opportunity, OpportunityStatus, PipelineStage, Task, TaskPriority, TaskStatus } from '@/types/crm';
 
 type LeadForm = {
   name: string;
@@ -13,13 +13,17 @@ type LeadForm = {
   temperature: LeadTemperature;
 };
 
-type TaskForm = {
+export type TaskForm = {
   title: string;
   leadId: number;
   owner: string;
   type: string;
-  priority: Task['priority'];
+  priority: TaskPriority;
   due: string;
+};
+
+export type TaskEditForm = TaskForm & {
+  status: TaskStatus;
 };
 
 export function statusFromStage(stage: PipelineStage): OpportunityStatus {
@@ -133,6 +137,14 @@ export async function createRealTask(taskForm: TaskForm, selectedLead: Lead | un
     status: 'Pendente'
   });
 
+  await createActivityLog({
+    company_id: profile.company_id,
+    contact_id: selectedLead.dbId,
+    user_id: profile.id,
+    type: 'task_created',
+    description: `Tarefa criada: ${taskForm.title}.`
+  });
+
   return {
     ...mapTaskRowToTask(taskRow, selectedLead.id, tasksLength),
     leadName: selectedLead.name,
@@ -141,7 +153,46 @@ export async function createRealTask(taskForm: TaskForm, selectedLead: Lead | un
   };
 }
 
+export async function updateRealTask(task: Task, form: TaskEditForm, selectedLead: Lead | undefined, index = 0) {
+  if (!task.dbId) return null;
+
+  const taskRow = await updateTask(task.dbId, {
+    title: form.title,
+    contact_id: selectedLead?.dbId || null,
+    description: `Prazo informado: ${form.due}`,
+    type: form.type,
+    priority: form.priority,
+    status: form.status
+  });
+
+  if (selectedLead?.dbId) {
+    const profile = await getRealProfileOrNull();
+    if (profile?.company_id) {
+      await createActivityLog({
+        company_id: profile.company_id,
+        contact_id: selectedLead.dbId,
+        user_id: profile.id,
+        type: 'task_updated',
+        description: `Tarefa atualizada: ${form.title}.`
+      });
+    }
+  }
+
+  return {
+    ...mapTaskRowToTask(taskRow, selectedLead?.id || task.leadId, index),
+    leadName: selectedLead?.name || task.leadName,
+    owner: selectedLead ? `${selectedLead.name} / ${form.owner}` : form.owner,
+    due: form.due
+  };
+}
+
 export async function persistTaskCompleted(task: Task | undefined) {
   if (!task?.dbId) return;
   await updateTask(task.dbId, { status: 'Concluída' });
+}
+
+export async function removeRealTask(task: Task | undefined) {
+  if (!task?.dbId) return false;
+  await deleteTask(task.dbId);
+  return true;
 }
