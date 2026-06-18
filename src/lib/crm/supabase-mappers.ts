@@ -20,7 +20,6 @@ const pipelineStages: PipelineStage[] = [
 ];
 
 function numericIdFromUuid(uuid: string, fallback: number) {
-  // Usamos o índice visual como base para evitar colisões numéricas entre UUIDs.
   return fallback;
 }
 
@@ -92,7 +91,7 @@ export function mapContactRowToLead(row: ContactRow, index = 0): Lead {
 
 export function mapOpportunityRowToOpportunity(row: OpportunityRow, leadId: number, index = 0): Opportunity {
   const status = normalizeOpportunityStatus(row.status);
-  const stageName = row.pipeline_stages?.name;
+  const stageName = row.stage_name || row.pipeline_stages?.name;
 
   return {
     id: numericIdFromUuid(row.id, index + 1),
