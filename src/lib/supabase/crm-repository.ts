@@ -12,7 +12,11 @@ function getClientOrThrow() {
   if (!supabase) {
     throw new Error('Supabase não configurado. Defina NEXT_PUBLIC_SUPABASE_URL e NEXT_PUBLIC_SUPABASE_ANON_KEY.');
   }
-  return supabase;
+
+  // Mantemos os tipos dos payloads do CRM, mas flexibilizamos o client neste MVP.
+  // Isso evita conflito de overloads do supabase-js enquanto a tipagem gerada oficial
+  // ainda não vem direto do projeto Supabase real.
+  return supabase as any;
 }
 
 export async function getCurrentProfile() {
