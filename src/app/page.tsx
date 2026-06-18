@@ -51,6 +51,7 @@ export default function Home() {
           leads={crm.leads}
           deals={crm.deals}
           moveDeal={crm.moveDeal}
+          updateDeal={crm.updateDeal}
           markWon={crm.markWon}
           markLost={crm.markLost}
           openConversation={crm.openConversation}
