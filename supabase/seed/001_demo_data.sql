@@ -1,18 +1,19 @@
 -- CLACK CRM Conversacional — dados iniciais de demonstração
 -- Antes de executar: crie um usuário em Authentication > Users no Supabase.
--- Depois copie o ID do usuário e substitua o valor abaixo.
-
--- 1) Troque este valor pelo ID real do usuário criado no Supabase Auth.
--- Exemplo: select '00000000-0000-0000-0000-000000000000'::uuid;
+-- Este seed busca automaticamente o usuário pelo e-mail abaixo.
 
 with params as (
   select
-    '00000000-0000-0000-0000-000000000000'::uuid as user_id,
-    'Will Sampaio'::text as user_name,
-    'will@clackcrm.com.br'::text as user_email
+    auth.users.id as user_id,
+    coalesce(auth.users.raw_user_meta_data->>'name', 'Will Sampaio')::text as user_name,
+    auth.users.email::text as user_email
+  from auth.users
+  where auth.users.email = 'will@clackcrm.com.br'
+  limit 1
 ), inserted_company as (
   insert into companies (name, email, city, state, segment, status)
-  values ('Clack Growth Company', 'will@clackcrm.com.br', 'Teresina', 'PI', 'Growth, Marketing, Comercial e CRM', 'active')
+  select 'Clack Growth Company', params.user_email, 'Teresina', 'PI', 'Growth, Marketing, Comercial e CRM', 'active'
+  from params
   returning id
 ), inserted_profile as (
   insert into profiles (id, company_id, name, email, role, status)
@@ -24,7 +25,7 @@ with params as (
     email = excluded.email,
     role = excluded.role,
     status = excluded.status
-  returning company_id
+  returning id, company_id
 ), inserted_pipeline as (
   insert into pipelines (company_id, name, is_default, status)
   select company_id, 'Funil Comercial Principal', true, 'active'
@@ -47,8 +48,8 @@ with params as (
   returning id, company_id, pipeline_id, name
 ), inserted_contacts as (
   insert into contacts (company_id, owner_id, name, phone, email, city, state, origin, temperature, status, notes)
-  select inserted_profile.company_id, params.user_id, contact.name, contact.phone, contact.email, contact.city, contact.state, contact.origin, contact.temperature, contact.status, contact.notes
-  from inserted_profile, params,
+  select inserted_profile.company_id, inserted_profile.id, contact.name, contact.phone, contact.email, contact.city, contact.state, contact.origin, contact.temperature, contact.status, contact.notes
+  from inserted_profile,
   (values
     ('Lucas Pereira', '5598999990001', 'lucas@email.com', 'Floriano', 'PI', 'Instagram', 'Quente', 'Lead', 'Lead criado via Instagram.'),
     ('Ana Clara', '5598999990002', 'ana@email.com', 'Teresina', 'PI', 'WhatsApp', 'Quente', 'Lead', 'Atendimento iniciado pelo WhatsApp.'),
@@ -67,6 +68,15 @@ with params as (
     status = excluded.status,
     notes = excluded.notes
   returning id, company_id, owner_id, name, origin, temperature
+), opportunity_seed as (
+  select * from (values
+    ('Lucas Pereira', 'Plano CRM Start', 297.00, 'Novo Lead', 'Aberta', 'CRM Start', 'Interesse em organizar vendas pelo WhatsApp.'),
+    ('Ana Clara', 'Implantação Comercial', 1500.00, 'Primeiro Contato', 'Aberta', 'Implantação', 'Precisa de funil para equipe de atendimento.'),
+    ('Isabela Costa', 'CRM Pro', 497.00, 'Qualificação', 'Aberta', 'CRM Pro', 'Cliente pediu demonstração.'),
+    ('Marcos Oliveira', 'Treinamento + CRM', 2500.00, 'Apresentação Enviada', 'Aberta', 'Treinamento Comercial', 'Aguardando decisão do gestor.'),
+    ('Fernanda Lima', 'Assinatura Mensal', 397.00, 'Proposta Enviada', 'Aberta', 'CRM Mensal', 'Proposta enviada.'),
+    ('Rafael Santos', 'CRM Premium', 997.00, 'Negociação', 'Aberta', 'CRM Premium', 'Alta chance de fechamento.')
+  ) as seed(contact_name, title, value, stage_name, status, product_interest, notes)
 ), inserted_opportunities as (
   insert into opportunities (company_id, contact_id, pipeline_id, stage_id, owner_id, title, value, temperature, status, product_interest, notes)
   select
@@ -82,17 +92,9 @@ with params as (
     opportunity.product_interest,
     opportunity.notes
   from inserted_contacts contact
+  join opportunity_seed opportunity on opportunity.contact_name = contact.name
   join inserted_pipeline pipeline on pipeline.company_id = contact.company_id
   join inserted_stages stage on stage.company_id = contact.company_id and stage.name = opportunity.stage_name
-  join (values
-    ('Lucas Pereira', 'Plano CRM Start', 297.00, 'Novo Lead', 'Aberta', 'CRM Start', 'Interesse em organizar vendas pelo WhatsApp.'),
-    ('Ana Clara', 'Implantação Comercial', 1500.00, 'Primeiro Contato', 'Aberta', 'Implantação', 'Precisa de funil para equipe de atendimento.'),
-    ('Isabela Costa', 'CRM Pro', 497.00, 'Qualificação', 'Aberta', 'CRM Pro', 'Cliente pediu demonstração.'),
-    ('Marcos Oliveira', 'Treinamento + CRM', 2500.00, 'Apresentação Enviada', 'Aberta', 'Treinamento Comercial', 'Aguardando decisão do gestor.'),
-    ('Fernanda Lima', 'Assinatura Mensal', 397.00, 'Proposta Enviada', 'Aberta', 'CRM Mensal', 'Proposta enviada.'),
-    ('Rafael Santos', 'CRM Premium', 997.00, 'Negociação', 'Aberta', 'CRM Premium', 'Alta chance de fechamento.')
-  ) as opportunity(contact_name, title, value, stage_name, status, product_interest, notes)
-  on opportunity.contact_name = contact.name
   returning id, company_id, contact_id, owner_id
 ), inserted_tasks as (
   insert into tasks (company_id, contact_id, opportunity_id, owner_id, title, description, type, priority, due_at, status)
