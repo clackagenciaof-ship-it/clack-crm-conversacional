@@ -14,21 +14,17 @@ type TaskForm = {
 
 type TasksPageProps = {
   tasks: Task[];
-  setTasks: (tasks: Task[]) => void;
   leads: Lead[];
   taskForm: TaskForm;
   setTaskForm: (form: TaskForm) => void;
   addTask: () => void;
+  completeTask: (taskId: number) => void;
 };
 
 const users = CRM_USERS.map((user) => user.name);
 const taskTypes = ['Ligar', 'Enviar mensagem', 'Reunião', 'Enviar proposta', 'Cobrar retorno', 'Pós-venda', 'Outro'];
 
-export function TasksPage({ tasks, setTasks, leads, taskForm, setTaskForm, addTask }: TasksPageProps) {
-  function completeTask(taskId: number) {
-    setTasks(tasks.map((task) => (task.id === taskId ? { ...task, status: 'Concluída' } : task)));
-  }
-
+export function TasksPage({ tasks, leads, taskForm, setTaskForm, addTask, completeTask }: TasksPageProps) {
   return (
     <div className="grid two-col">
       <div className="card pad">
