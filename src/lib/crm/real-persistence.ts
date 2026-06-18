@@ -13,6 +13,18 @@ type LeadForm = {
   temperature: LeadTemperature;
 };
 
+export type OpportunityEditForm = {
+  title: string;
+  value: number;
+  stage: PipelineStage;
+  owner: string;
+  source: string;
+  temperature: LeadTemperature;
+  nextTask: string;
+  status: OpportunityStatus;
+  notes: string;
+};
+
 export type TaskForm = {
   title: string;
   leadId: number;
@@ -110,6 +122,39 @@ export async function persistOpportunityStage(deal: Opportunity, stage: Pipeline
 
   const stageId = await findStageIdByName(profile.company_id, stage);
   await updateOpportunity(deal.dbId, { status: statusFromStage(stage), stage_id: stageId, stage_name: stage });
+}
+
+export async function updateRealOpportunity(deal: Opportunity, form: OpportunityEditForm, index = 0) {
+  if (!deal.dbId) return null;
+  const profile = await getRealProfileOrNull();
+  if (!profile?.company_id) return null;
+
+  const stageId = await findStageIdByName(profile.company_id, form.stage);
+  const opportunityRow = await updateOpportunity(deal.dbId, {
+    title: form.title,
+    value: form.value,
+    stage_id: stageId,
+    stage_name: form.stage,
+    temperature: form.temperature,
+    status: form.status,
+    notes: form.notes
+  });
+
+  await createActivityLog({
+    company_id: profile.company_id,
+    contact_id: opportunityRow.contact_id,
+    opportunity_id: deal.dbId,
+    user_id: profile.id,
+    type: 'opportunity_updated',
+    description: `Oportunidade atualizada: ${form.title}.`
+  });
+
+  return {
+    ...mapOpportunityRowToOpportunity(opportunityRow, deal.leadId, index),
+    owner: form.owner,
+    source: form.source,
+    nextTask: form.nextTask
+  };
 }
 
 export async function persistOpportunityWon(deal: Opportunity, value: number) {
