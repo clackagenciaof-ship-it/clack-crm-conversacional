@@ -4,6 +4,8 @@ import type { Screen } from '@/types/crm';
 type HeaderProps = {
   screen: Screen;
   setScreen: (screen: Screen) => void;
+  dataNotice?: string;
+  loadingRealData?: boolean;
 };
 
 const titles: Record<Screen, string> = {
@@ -16,8 +18,8 @@ const titles: Record<Screen, string> = {
   settings: 'Configurações'
 };
 
-export function Header({ screen, setScreen }: HeaderProps) {
-  const dataModeLabel = getCrmDataModeLabel();
+export function Header({ screen, setScreen, dataNotice, loadingRealData }: HeaderProps) {
+  const dataModeLabel = loadingRealData ? 'Carregando dados...' : dataNotice || getCrmDataModeLabel();
 
   return (
     <div className="topbar">
