@@ -25,6 +25,7 @@ type LeadDrawerProps = {
   openConversation: (lead: Lead) => void;
   copyMessage: (message: QuickMessage, lead: Lead) => void;
   updateLead: (lead: Lead, form: LeadEditForm) => void | Promise<void>;
+  addLeadNote: (lead: Lead, note: string) => void | Promise<void>;
 };
 
 const tabs = ['Resumo', 'Editar', 'Oportunidades', 'Histórico', 'Tarefas', 'Conversa'];
@@ -43,9 +44,10 @@ function createEditForm(lead: Lead): LeadEditForm {
   };
 }
 
-export function LeadDrawer({ lead, deals, tasks, messages, onClose, openConversation, copyMessage, updateLead }: LeadDrawerProps) {
+export function LeadDrawer({ lead, deals, tasks, messages, onClose, openConversation, copyMessage, updateLead, addLeadNote }: LeadDrawerProps) {
   const [tab, setTab] = useState('Resumo');
   const [editForm, setEditForm] = useState<LeadEditForm>(createEditForm(lead));
+  const [note, setNote] = useState('');
 
   useEffect(() => {
     setEditForm(createEditForm(lead));
@@ -59,6 +61,16 @@ export function LeadDrawer({ lead, deals, tasks, messages, onClose, openConversa
 
     await updateLead(lead, editForm);
     alert('Ficha do cliente atualizada.');
+  }
+
+  async function saveNote() {
+    if (!note.trim()) {
+      alert('Escreva uma anotação antes de salvar.');
+      return;
+    }
+
+    await addLeadNote(lead, note);
+    setNote('');
   }
 
   return (
@@ -144,6 +156,14 @@ export function LeadDrawer({ lead, deals, tasks, messages, onClose, openConversa
 
         {tab === 'Histórico' && (
           <div className="timeline">
+            <div className="card pad">
+              <div className="section-title">
+                <h2>Nova anotação</h2>
+                <span>Registre atendimento, retorno, dúvida ou observação</span>
+              </div>
+              <textarea className="input full" placeholder="Ex.: Cliente pediu retorno amanhã às 15h..." value={note} onChange={(event) => setNote(event.target.value)} style={{ minHeight: 90 }} />
+              <button className="btn primary" onClick={saveNote}>Salvar anotação</button>
+            </div>
             {lead.history.length ? lead.history.map((history, index) => (
               <div className="timeline-item" key={index}>{history}</div>
             )) : <div className="empty">Nenhum histórico registrado.</div>}
