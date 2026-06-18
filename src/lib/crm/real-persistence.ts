@@ -69,6 +69,7 @@ export async function createRealLeadAndOpportunity(leadForm: LeadForm, leadsLeng
     company_id: profile.company_id,
     contact_id: contactRow.id,
     stage_id: stageId,
+    stage_name: 'Novo Lead',
     owner_id: profile.id,
     title: 'Nova oportunidade',
     value: 0,
@@ -104,17 +105,17 @@ export async function persistOpportunityStage(deal: Opportunity, stage: Pipeline
   if (!profile?.company_id) return;
 
   const stageId = await findStageIdByName(profile.company_id, stage);
-  await updateOpportunity(deal.dbId, { status: statusFromStage(stage), stage_id: stageId });
+  await updateOpportunity(deal.dbId, { status: statusFromStage(stage), stage_id: stageId, stage_name: stage });
 }
 
 export async function persistOpportunityWon(deal: Opportunity, value: number) {
   if (!deal.dbId) return;
-  await updateOpportunity(deal.dbId, { value, status: 'Ganha' });
+  await updateOpportunity(deal.dbId, { value, status: 'Ganha', stage_name: 'Fechado' });
 }
 
 export async function persistOpportunityLost(deal: Opportunity, reason: string) {
   if (!deal.dbId) return;
-  await updateOpportunity(deal.dbId, { status: 'Perdida', lost_reason: reason, notes: `${deal.notes} Motivo da perda: ${reason}.` });
+  await updateOpportunity(deal.dbId, { status: 'Perdida', stage_name: 'Perdido', lost_reason: reason, notes: `${deal.notes} Motivo da perda: ${reason}.` });
 }
 
 export async function createRealTask(taskForm: TaskForm, selectedLead: Lead | undefined, tasksLength: number) {
@@ -134,7 +135,8 @@ export async function createRealTask(taskForm: TaskForm, selectedLead: Lead | un
 
   return {
     ...mapTaskRowToTask(taskRow, selectedLead.id, tasksLength),
-    owner: taskForm.owner,
+    leadName: selectedLead.name,
+    owner: `${selectedLead.name} / ${taskForm.owner}`,
     due: taskForm.due
   };
 }
