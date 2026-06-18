@@ -1,9 +1,9 @@
 "use client";
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { demoLeads, demoOpportunities, demoQuickMessages, demoTasks } from '@/data/demo-data';
 import { formatCurrencyBRL as brl } from '@/lib/crm/formatters';
-import { signInWithSupabaseOrDemo, signOutSupabase } from '@/lib/supabase/auth';
+import { hasActiveSupabaseSession, signInWithSupabaseOrDemo, signOutSupabase } from '@/lib/supabase/auth';
 import { useCrmRealLoader } from '@/hooks/useCrmRealLoader';
 import type { Lead, LeadTemperature, Opportunity, PipelineStage, QuickMessage, Screen, Task } from '@/types/crm';
 
@@ -60,7 +60,26 @@ export function useCrmMvpState() {
   const [tempFilter, setTempFilter] = useState('Todas');
   const [leadForm, setLeadForm] = useState<LeadForm>(initialLeadForm);
   const [taskForm, setTaskForm] = useState<TaskForm>(initialTaskForm);
-  const { loadingRealData, dataNotice } = useCrmRealLoader({ setLeads, setDeals, setTasks, setMessages });
+  const { loadingRealData, dataNotice, reloadRealData } = useCrmRealLoader({ setLeads, setDeals, setTasks, setMessages });
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function restoreSession() {
+      const hasSession = await hasActiveSupabaseSession();
+      if (cancelled || !hasSession) return;
+
+      setLogged(true);
+      setLoginNotice('Sessão Supabase restaurada.');
+      await reloadRealData();
+    }
+
+    restoreSession();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [reloadRealData]);
 
   const filteredLeads = useMemo(() => leads.filter((lead) =>
     (lead.name.toLowerCase().includes(filter.toLowerCase()) || lead.phone.includes(filter)) &&
@@ -76,6 +95,10 @@ export function useCrmMvpState() {
     if (!result.ok) {
       alert(result.message);
       return;
+    }
+
+    if (result.mode === 'supabase') {
+      await reloadRealData();
     }
 
     setLogged(true);
