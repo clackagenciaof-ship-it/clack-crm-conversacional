@@ -31,6 +31,7 @@ export type CrmUser = {
 
 export type Lead = {
   id: number;
+  dbId?: string;
   name: string;
   phone: string;
   email: string;
@@ -46,6 +47,7 @@ export type Lead = {
 
 export type Opportunity = {
   id: number;
+  dbId?: string;
   leadId: number;
   title: string;
   value: number;
@@ -61,6 +63,7 @@ export type Opportunity = {
 
 export type Task = {
   id: number;
+  dbId?: string;
   title: string;
   leadId: number;
   owner: string;
@@ -72,6 +75,7 @@ export type Task = {
 
 export type QuickMessage = {
   id: number;
+  dbId?: string;
   title: string;
   category: string;
   active: boolean;
