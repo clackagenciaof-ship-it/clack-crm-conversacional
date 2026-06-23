@@ -1,4 +1,4 @@
-export type Screen = 'dashboard' | 'leads' | 'kanban' | 'tasks' | 'messages' | 'reports' | 'settings';
+export type Screen = 'dashboard' | 'leads' | 'kanban' | 'tasks' | 'messages' | 'inbox' | 'reports' | 'settings';
 
 export type LeadTemperature = 'Quente' | 'Morno' | 'Frio';
 
@@ -58,6 +58,7 @@ export type Opportunity = {
   nextTask: string;
   late: boolean;
   status: OpportunityStatus;
+  productInterest?: string;
   notes: string;
 };
 
