@@ -57,7 +57,7 @@ function buildSuggestion(settings: typeof fallbackSettings, payload: AgentPayloa
   return `${opening}\n\n${consultive}\n${priceLine}\n${urgency}\n\n${next}\n\nObjetivo interno: ${goal}.`;
 }
 
-async function ensureSettings(context: NonNullable<Awaited<ReturnType<typeof getAdminRequestContext>>['context']>) {
+async function ensureSettings(context: any) {
   const companyId = context.profile.company_id;
   let { data: settings, error } = await context.service.from('ai_agent_settings').select('*').eq('company_id', companyId).maybeSingle();
   if (error) throw error;
