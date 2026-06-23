@@ -6,15 +6,7 @@ export type LeadStatus = 'Lead' | 'Cliente' | 'Inativo' | 'Arquivado';
 
 export type OpportunityStatus = 'Aberta' | 'Ganha' | 'Perdida' | 'Arquivada';
 
-export type PipelineStage =
-  | 'Novo Lead'
-  | 'Primeiro Contato'
-  | 'Qualificação'
-  | 'Apresentação Enviada'
-  | 'Proposta Enviada'
-  | 'Negociação'
-  | 'Fechado'
-  | 'Perdido';
+export type PipelineStage = string;
 
 export type TaskStatus = 'Pendente' | 'Em andamento' | 'Concluída' | 'Vencida' | 'Cancelada';
 
@@ -60,6 +52,9 @@ export type Opportunity = {
   status: OpportunityStatus;
   productInterest?: string;
   notes: string;
+  probability?: number;
+  expectedCloseDate?: string;
+  sourceCampaign?: string;
 };
 
 export type Task = {
