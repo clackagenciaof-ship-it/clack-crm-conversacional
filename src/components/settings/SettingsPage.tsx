@@ -24,12 +24,29 @@ type NewUserForm = {
   role: UserRole;
 };
 
+type EditUserForm = {
+  name: string;
+  role: UserRole;
+  status: 'active' | 'inactive';
+};
+
+type CompanyPlan = {
+  plan_name: string;
+  user_limit: number;
+  billing_status: string;
+};
+
 const initialNewUserForm: NewUserForm = {
   name: '',
   email: '',
   password: '',
   role: 'Vendedor'
 };
+
+function planLabel(plan: CompanyPlan | null) {
+  if (!plan) return 'Plano Inicial';
+  return `Plano ${plan.plan_name}`;
+}
 
 export function SettingsPage({ currentRole, currentUserName, setUserRole }: SettingsPageProps) {
   const [accounts, setAccounts] = useState<WhatsAppAccount[]>([]);
@@ -41,14 +58,22 @@ export function SettingsPage({ currentRole, currentUserName, setUserRole }: Sett
   const [savingUser, setSavingUser] = useState(false);
   const [updatingUserId, setUpdatingUserId] = useState<string | null>(null);
   const [newUserForm, setNewUserForm] = useState<NewUserForm>(initialNewUserForm);
+  const [editingMember, setEditingMember] = useState<ProfileRow | null>(null);
+  const [editUserForm, setEditUserForm] = useState<EditUserForm | null>(null);
+  const [companyPlan, setCompanyPlan] = useState<CompanyPlan | null>(null);
 
   const canViewTeam = currentRole === 'Admin Empresa' || currentRole === 'Gestor';
   const canManageTeam = currentRole === 'Admin Empresa';
+  const visibleTeam = team.filter((member) => member.status !== 'removed');
+  const activeUsers = visibleTeam.filter((member) => member.status === 'active').length;
+  const userLimit = companyPlan?.user_limit || 5;
+  const remainingUsers = Math.max(userLimit - activeUsers, 0);
+  const reachedUserLimit = activeUsers >= userLimit;
 
   const roleCounts = useMemo(() => roles.map((role) => ({
     role,
-    count: team.filter((member) => normalizeRole(member.role) === role).length
-  })), [team]);
+    count: visibleTeam.filter((member) => normalizeRole(member.role) === role && member.status === 'active').length
+  })), [visibleTeam]);
 
   async function getAccessToken() {
     const supabase = createSupabaseBrowserClient() as any;
@@ -62,6 +87,29 @@ export function SettingsPage({ currentRole, currentUserName, setUserRole }: Sett
     return token;
   }
 
+  async function loadCompanyPlan(companyId: string) {
+    const supabase = createSupabaseBrowserClient() as any;
+    if (!supabase) return;
+
+    const { data, error } = await supabase
+      .from('companies')
+      .select('plan_name, user_limit, billing_status')
+      .eq('id', companyId)
+      .single();
+
+    if (error) {
+      console.warn('Plano da empresa indisponível. Usando limite padrão.', error);
+      setCompanyPlan({ plan_name: 'Inicial', user_limit: 5, billing_status: 'active' });
+      return;
+    }
+
+    setCompanyPlan({
+      plan_name: data?.plan_name || 'Inicial',
+      user_limit: Number(data?.user_limit || 5),
+      billing_status: data?.billing_status || 'active'
+    });
+  }
+
   async function refreshTeam() {
     if (!canViewTeam) return;
 
@@ -69,6 +117,7 @@ export function SettingsPage({ currentRole, currentUserName, setUserRole }: Sett
     try {
       const profile = await getCurrentProfile();
       if (!profile?.company_id) return;
+      await loadCompanyPlan(profile.company_id);
       const data = await listCompanyProfiles(profile.company_id);
       setTeam(data);
     } catch (error) {
@@ -99,6 +148,7 @@ export function SettingsPage({ currentRole, currentUserName, setUserRole }: Sett
       try {
         const profile = await getCurrentProfile();
         if (!profile?.company_id) return;
+        await loadCompanyPlan(profile.company_id);
         const data = await listCompanyProfiles(profile.company_id);
         if (!cancelled) setTeam(data);
       } catch (error) {
@@ -171,6 +221,11 @@ export function SettingsPage({ currentRole, currentUserName, setUserRole }: Sett
       return;
     }
 
+    if (reachedUserLimit) {
+      alert(`Limite de usuários atingido no ${planLabel(companyPlan)}. Para adicionar mais acessos, solicite upgrade do plano.`);
+      return;
+    }
+
     setSavingUser(true);
     try {
       const token = await getAccessToken();
@@ -201,7 +256,7 @@ export function SettingsPage({ currentRole, currentUserName, setUserRole }: Sett
   }
 
   async function updateTeamUser(member: ProfileRow, payload: Partial<Pick<ProfileRow, 'name' | 'role' | 'status'>>) {
-    if (!canManageTeam) return;
+    if (!canManageTeam) return null;
 
     setUpdatingUserId(member.id);
     try {
@@ -218,15 +273,52 @@ export function SettingsPage({ currentRole, currentUserName, setUserRole }: Sett
       const result = await response.json();
       if (!response.ok || !result.ok) {
         alert(result.error || 'Não foi possível atualizar o usuário.');
-        return;
+        return null;
       }
 
-      setTeam((currentTeam) => currentTeam.map((item) => item.id === member.id ? result.profile as ProfileRow : item));
+      const updatedProfile = result.profile as ProfileRow;
+      setTeam((currentTeam) => currentTeam.map((item) => item.id === member.id ? updatedProfile : item));
+      return updatedProfile;
     } catch (error) {
       console.error('Falha ao atualizar usuário.', error);
       alert('Não foi possível atualizar o usuário.');
+      return null;
     } finally {
       setUpdatingUserId(null);
+    }
+  }
+
+  function startEditMember(member: ProfileRow) {
+    setEditingMember(member);
+    setEditUserForm({
+      name: member.name || '',
+      role: normalizeRole(member.role),
+      status: member.status === 'active' ? 'active' : 'inactive'
+    });
+  }
+
+  async function saveEditedMember() {
+    if (!editingMember || !editUserForm) return;
+    if (!editUserForm.name.trim()) {
+      alert('Informe o nome do usuário.');
+      return;
+    }
+
+    const updated = await updateTeamUser(editingMember, editUserForm as any);
+    if (updated) {
+      setEditingMember(null);
+      setEditUserForm(null);
+      alert('Usuário atualizado.');
+    }
+  }
+
+  async function removeMemberAccess(member: ProfileRow) {
+    const confirmed = window.confirm(`Deseja excluir o acesso de ${member.name}? Por segurança, o login será inativado e o histórico da equipe será preservado.`);
+    if (!confirmed) return;
+
+    const updated = await updateTeamUser(member, { status: 'inactive' });
+    if (updated) {
+      alert('Acesso excluído com segurança. O usuário não conseguirá entrar enquanto estiver inativo.');
     }
   }
 
@@ -259,7 +351,16 @@ export function SettingsPage({ currentRole, currentUserName, setUserRole }: Sett
         <div className="card pad">
           <div className="section-title">
             <h2>Equipe e acessos</h2>
-            <span>{loadingTeam ? 'Carregando...' : `${team.length || 1} pessoa(s)`}</span>
+            <span>{loadingTeam ? 'Carregando...' : `${visibleTeam.length || 1} pessoa(s)`}</span>
+          </div>
+
+          <div className="timeline-item">
+            <b>{planLabel(companyPlan)} — limite de usuários</b>
+            <p className="notice">
+              {activeUsers} usuário(s) ativo(s) de {userLimit}. Restam {remainingUsers} acesso(s). {companyPlan?.billing_status === 'active' ? 'Plano ativo.' : 'Plano bloqueado.'}
+            </p>
+            <p className="notice">Inicial: até 5 usuários ativos • Growth: 6 a 10 • Pro: acima de 10. A equipe ADM Clack define plano, limite, upgrade e cobrança.</p>
+            {reachedUserLimit && <p className="notice"><b>Limite de usuários atingido. Para adicionar mais acessos, solicite upgrade do plano.</b></p>}
           </div>
 
           <div className="grid metrics" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))' }}>
@@ -267,7 +368,7 @@ export function SettingsPage({ currentRole, currentUserName, setUserRole }: Sett
               <div className="metric" key={item.role}>
                 <span>{item.role}</span>
                 <strong>{item.count || (item.role === currentRole ? 1 : 0)}</strong>
-                <small>usuário(s)</small>
+                <small>usuário(s) ativo(s)</small>
               </div>
             ))}
           </div>
@@ -275,7 +376,7 @@ export function SettingsPage({ currentRole, currentUserName, setUserRole }: Sett
           {canManageTeam && (
             <div className="timeline-item" style={{ marginTop: 16 }}>
               <b>Criar novo acesso real</b>
-              <p className="notice">Somente o Admin Empresa cria novos logins. O usuário criado entra com e-mail, senha inicial e o perfil escolhido.</p>
+              <p className="notice">Somente o Admin Empresa cria novos logins, respeitando o limite contratado no plano.</p>
               <div className="form-grid" style={{ marginTop: 12 }}>
                 <input className="input" placeholder="Nome completo" value={newUserForm.name} onChange={(event) => setNewUserForm({ ...newUserForm, name: event.target.value })} />
                 <input className="input" placeholder="E-mail de acesso" value={newUserForm.email} onChange={(event) => setNewUserForm({ ...newUserForm, email: event.target.value })} />
@@ -283,21 +384,38 @@ export function SettingsPage({ currentRole, currentUserName, setUserRole }: Sett
                 <select className="select" value={newUserForm.role} onChange={(event) => setNewUserForm({ ...newUserForm, role: event.target.value as UserRole })}>
                   {roles.filter((role) => role !== 'Admin Empresa').map((role) => <option key={role}>{role}</option>)}
                 </select>
-                <button className="btn primary full" disabled={savingUser} onClick={createTeamUser}>{savingUser ? 'Criando...' : 'Criar usuário'}</button>
+                <button className="btn primary full" disabled={savingUser || reachedUserLimit} onClick={createTeamUser}>{savingUser ? 'Criando...' : reachedUserLimit ? 'Limite atingido' : 'Criar usuário'}</button>
+              </div>
+            </div>
+          )}
+
+          {canManageTeam && editingMember && editUserForm && (
+            <div className="timeline-item" style={{ marginTop: 16 }}>
+              <b>Editar usuário</b>
+              <p className="notice">{editingMember.email}</p>
+              <div className="form-grid" style={{ marginTop: 12 }}>
+                <input className="input" value={editUserForm.name} onChange={(event) => setEditUserForm({ ...editUserForm, name: event.target.value })} />
+                <select className="select" value={editUserForm.role} onChange={(event) => setEditUserForm({ ...editUserForm, role: event.target.value as UserRole })}>
+                  {roles.map((role) => <option key={role}>{role}</option>)}
+                </select>
+                <select className="select" value={editUserForm.status} onChange={(event) => setEditUserForm({ ...editUserForm, status: event.target.value as 'active' | 'inactive' })}>
+                  <option value="active">Ativo</option>
+                  <option value="inactive">Inativo</option>
+                </select>
+                <button className="btn primary" disabled={updatingUserId === editingMember.id} onClick={saveEditedMember}>Salvar edição</button>
+                <button className="btn full" onClick={() => { setEditingMember(null); setEditUserForm(null); }}>Cancelar edição</button>
               </div>
             </div>
           )}
 
           <div className="timeline" style={{ marginTop: 16 }}>
-            {team.map((member) => (
+            {visibleTeam.map((member) => (
               <div className="timeline-item" key={member.id}>
                 <b>{member.name}</b>
                 <p className="notice">{member.email} • {normalizeRole(member.role)} • {member.status === 'active' ? 'Ativo' : 'Inativo'}</p>
                 {canManageTeam && (
-                  <div className="form-grid" style={{ marginTop: 10 }}>
-                    <select className="select" value={normalizeRole(member.role)} disabled={updatingUserId === member.id} onChange={(event) => updateTeamUser(member, { role: event.target.value as UserRole })}>
-                      {roles.map((role) => <option key={role}>{role}</option>)}
-                    </select>
+                  <div style={{ marginTop: 10, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    <button className="btn small" disabled={updatingUserId === member.id} onClick={() => startEditMember(member)}>Editar</button>
                     <button
                       className={member.status === 'active' ? 'btn small danger' : 'btn small success'}
                       disabled={updatingUserId === member.id}
@@ -305,11 +423,12 @@ export function SettingsPage({ currentRole, currentUserName, setUserRole }: Sett
                     >
                       {member.status === 'active' ? 'Inativar' : 'Ativar'}
                     </button>
+                    <button className="btn small danger" disabled={updatingUserId === member.id} onClick={() => removeMemberAccess(member)}>Excluir</button>
                   </div>
                 )}
               </div>
             ))}
-            {!team.length && (
+            {!visibleTeam.length && (
               <div className="timeline-item">
                 <b>{currentUserName}</b>
                 <p className="notice">Usuário atual • {currentRole}</p>
