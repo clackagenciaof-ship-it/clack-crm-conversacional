@@ -27,7 +27,7 @@ export function Header({ screen, setScreen, dataNotice, loadingRealData, onLogou
     <div className="topbar">
       <div>
         <h1>{titles[screen]}</h1>
-        <p>Clack Growth Company • MVP 1 operacional • {dataModeLabel}</p>
+        <p>Clack Growth Company • Seu CRM inteligente de vendas e atendimento • {dataModeLabel}</p>
       </div>
       <div className="top-actions">
         <button className="btn" onClick={() => setScreen('leads')}>Novo Lead</button>
