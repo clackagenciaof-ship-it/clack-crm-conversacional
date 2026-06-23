@@ -4,13 +4,13 @@ import { normalizeRole } from '@/lib/crm/permissions';
 import type { UserRole } from '@/types/crm';
 
 const allowedRoles: UserRole[] = ['Admin Empresa', 'Gestor', 'Vendedor', 'Atendente', 'Financeiro'];
-const allowedStatuses = ['active', 'inactive'];
+const allowedStatuses = ['active', 'inactive', 'removed'];
 
 type UpdateUserPayload = {
   userId?: string;
   name?: string;
   role?: UserRole;
-  status?: 'active' | 'inactive';
+  status?: 'active' | 'inactive' | 'removed';
 };
 
 function createAuthVerifier() {
@@ -60,6 +60,7 @@ async function countActiveUsers(service: any, companyId: string) {
 }
 
 function actionFromChange(before: any, after: any) {
+  if (after?.status === 'removed') return 'user_removed';
   if (before?.role !== after?.role) return 'user_role_updated';
   if (before?.status !== after?.status) return 'user_status_updated';
   return 'user_updated';
@@ -136,8 +137,8 @@ export async function POST(request: Request) {
     return Response.json({ ok: false, error: 'Usuário fora da empresa atual.' }, { status: 403 });
   }
 
-  if (payload.userId === creatorProfile.id && payload.status === 'inactive') {
-    return Response.json({ ok: false, error: 'O Admin atual não pode inativar o próprio acesso.' }, { status: 400 });
+  if (payload.userId === creatorProfile.id && (payload.status === 'inactive' || payload.status === 'removed')) {
+    return Response.json({ ok: false, error: 'O Admin atual não pode remover ou inativar o próprio acesso.' }, { status: 400 });
   }
 
   if (payload.status === 'active' && targetProfile.status !== 'active') {
