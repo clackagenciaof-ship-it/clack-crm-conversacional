@@ -18,7 +18,10 @@ const titles: Record<Screen, string> = {
   tasks: 'Tarefas e follow-ups',
   messages: 'Mensagens rápidas',
   inbox: 'Atendimento',
+  products: 'Produtos e serviços',
   reports: 'Relatórios',
+  finance: 'Financeiro',
+  onboarding: 'Onboarding SaaS',
   settings: 'Configurações'
 };
 
