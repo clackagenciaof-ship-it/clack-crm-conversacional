@@ -14,6 +14,9 @@ export type Database = {
           state: string | null;
           segment: string | null;
           status: string;
+          plan_name: string;
+          user_limit: number;
+          billing_status: string;
           created_at: string;
         };
         Insert: {
@@ -26,6 +29,9 @@ export type Database = {
           state?: string | null;
           segment?: string | null;
           status?: string;
+          plan_name?: string;
+          user_limit?: number;
+          billing_status?: string;
           created_at?: string;
         };
         Update: Partial<Database['public']['Tables']['companies']['Insert']>;
@@ -38,6 +44,9 @@ export type Database = {
           email: string;
           role: string;
           status: string;
+          invite_status: string;
+          last_invited_at: string | null;
+          temporary_password_updated_at: string | null;
           created_at: string;
         };
         Insert: {
@@ -47,6 +56,9 @@ export type Database = {
           email: string;
           role?: string;
           status?: string;
+          invite_status?: string;
+          last_invited_at?: string | null;
+          temporary_password_updated_at?: string | null;
           created_at?: string;
         };
         Update: Partial<Database['public']['Tables']['profiles']['Insert']>;
@@ -201,6 +213,27 @@ export type Database = {
           created_at?: string;
         };
         Update: Partial<Database['public']['Tables']['activity_logs']['Insert']>;
+      };
+      company_plan_audit_logs: {
+        Row: {
+          id: string;
+          company_id: string;
+          actor_profile_id: string | null;
+          action: string;
+          previous_value: Json | null;
+          next_value: Json | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          company_id: string;
+          actor_profile_id?: string | null;
+          action: string;
+          previous_value?: Json | null;
+          next_value?: Json | null;
+          created_at?: string;
+        };
+        Update: Partial<Database['public']['Tables']['company_plan_audit_logs']['Insert']>;
       };
     };
     Views: Record<string, never>;
