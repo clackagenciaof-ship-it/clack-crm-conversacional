@@ -8,17 +8,6 @@ type OpportunityRow = Database['public']['Tables']['opportunities']['Row'] & {
 type TaskRow = Database['public']['Tables']['tasks']['Row'];
 type QuickMessageRow = Database['public']['Tables']['quick_messages']['Row'];
 
-const pipelineStages: PipelineStage[] = [
-  'Novo Lead',
-  'Primeiro Contato',
-  'Qualificação',
-  'Apresentação Enviada',
-  'Proposta Enviada',
-  'Negociação',
-  'Fechado',
-  'Perdido'
-];
-
 function numericIdFromUuid(uuid: string, fallback: number) {
   return fallback;
 }
@@ -39,7 +28,7 @@ function normalizeOpportunityStatus(value: string | null | undefined): Opportuni
 }
 
 function normalizeOpportunityStage(status: OpportunityStatus, stageName?: string | null): PipelineStage {
-  if (stageName && pipelineStages.includes(stageName as PipelineStage)) return stageName as PipelineStage;
+  if (stageName) return stageName;
   if (status === 'Ganha') return 'Fechado';
   if (status === 'Perdida') return 'Perdido';
   return 'Novo Lead';
