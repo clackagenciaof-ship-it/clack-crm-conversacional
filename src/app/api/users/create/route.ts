@@ -32,6 +32,36 @@ function getBearerToken(request: Request) {
   return authorization.slice(7).trim();
 }
 
+async function getCompanyPlan(service: any, companyId: string) {
+  const { data, error } = await service
+    .from('companies')
+    .select('plan_name, user_limit, billing_status')
+    .eq('id', companyId)
+    .single();
+
+  if (error) {
+    console.warn('Plano da empresa indisponível. Aplicando limite padrão.', error);
+    return { plan_name: 'Inicial', user_limit: 5, billing_status: 'active' };
+  }
+
+  return {
+    plan_name: data?.plan_name || 'Inicial',
+    user_limit: Number(data?.user_limit || 5),
+    billing_status: data?.billing_status || 'active'
+  };
+}
+
+async function countActiveUsers(service: any, companyId: string) {
+  const { count, error } = await service
+    .from('profiles')
+    .select('id', { count: 'exact', head: true })
+    .eq('company_id', companyId)
+    .eq('status', 'active');
+
+  if (error) throw error;
+  return count || 0;
+}
+
 export async function POST(request: Request) {
   let payload: CreateUserPayload;
 
@@ -94,6 +124,21 @@ export async function POST(request: Request) {
     return Response.json({ ok: false, error: 'Apenas Admin Empresa pode criar novos acessos.' }, { status: 403 });
   }
 
+  const plan = await getCompanyPlan(service, creatorProfile.company_id);
+
+  if (plan.billing_status !== 'active') {
+    return Response.json({ ok: false, error: 'Plano bloqueado. Procure a equipe ADM Clack para regularizar o acesso.' }, { status: 403 });
+  }
+
+  const activeUsers = await countActiveUsers(service, creatorProfile.company_id);
+
+  if (activeUsers >= plan.user_limit) {
+    return Response.json({
+      ok: false,
+      error: `Limite de usuários atingido no Plano ${plan.plan_name}. Para adicionar mais acessos, solicite upgrade do plano.`
+    }, { status: 403 });
+  }
+
   const { data: existingProfile } = await service
     .from('profiles')
     .select('id')
@@ -134,5 +179,5 @@ export async function POST(request: Request) {
     return Response.json({ ok: false, error: 'Usuário criado, mas o perfil não foi salvo.' }, { status: 500 });
   }
 
-  return Response.json({ ok: true, profile });
+  return Response.json({ ok: true, profile, plan, activeUsers: activeUsers + 1 });
 }
