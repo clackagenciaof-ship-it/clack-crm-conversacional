@@ -3,6 +3,30 @@
 import { useEffect, useState } from 'react';
 import { defaultAgentSettings, loadAIAgent, saveAIAgent, suggestWithAIAgent, type AIAgentLog, type AIAgentSettings } from '@/lib/crm/ai-agent-client';
 
+const tonePresets = [
+  'Consultivo, humano, objetivo e comercial',
+  'Persuasivo, direto, seguro e orientado para fechamento',
+  'Acolhedor, paciente, claro e focado em atendimento',
+  'Executivo, premium, estratégico e com linguagem de decisão',
+  'Jovem, próximo, leve e com energia de marca digital'
+];
+
+const specialtyPresets = [
+  'Vendas, atendimento, follow-up, recuperação de proposta e gestão comercial',
+  'Qualificação de leads, diagnóstico de necessidade e encaminhamento para vendedor',
+  'Recuperação de orçamento, objeções de preço e retomada de negociação',
+  'Pós-venda, retenção, recompra, indicação e relacionamento com cliente',
+  'Suporte comercial, triagem de atendimento e passagem para equipe humana'
+];
+
+const knowledgePresets = [
+  'Empresa de serviços: destacar diagnóstico, proposta personalizada, prazo, garantia, atendimento humano e acompanhamento pelo CRM.',
+  'Varejo e loja: destacar produtos disponíveis, condições, urgência, benefícios, prova social e chamada para compra.',
+  'Telecom/provedor: destacar planos, cobertura, instalação, suporte, estabilidade, atendimento rápido e retenção.',
+  'Consultoria/marketing: destacar diagnóstico, funil, campanhas, indicadores, posicionamento, vendas e crescimento de receita.',
+  'Saúde/estética/agenda: destacar segurança, avaliação, horários disponíveis, orientação, confirmação e experiência do cliente.'
+];
+
 export function AIAgentWillPanel() {
   const [settings, setSettings] = useState<AIAgentSettings>(defaultAgentSettings);
   const [logs, setLogs] = useState<AIAgentLog[]>([]);
@@ -47,7 +71,7 @@ export function AIAgentWillPanel() {
   async function generateSuggestion() {
     setGenerating(true);
     try {
-      const text = await suggestWithAIAgent({ context: settings.specialty, customer_message: customerMessage, goal });
+      const text = await suggestWithAIAgent({ context: `${settings.specialty}\n${settings.knowledge_base || ''}`, customer_message: customerMessage, goal });
       setSuggestion(text);
       await refresh();
     } catch (error) {
@@ -70,10 +94,13 @@ export function AIAgentWillPanel() {
         <div className="form-grid">
           <input className="input" disabled={!canManage} value={settings.agent_name} onChange={(event) => update('agent_name', event.target.value)} placeholder="Nome do agente" />
           <select className="select" disabled={!canManage} value={settings.enabled ? 'Ativo' : 'Inativo'} onChange={(event) => update('enabled', event.target.value === 'Ativo')}><option>Ativo</option><option>Inativo</option></select>
-          <input className="input full" disabled={!canManage} value={settings.tone} onChange={(event) => update('tone', event.target.value)} placeholder="Tom de voz" />
-          <input className="input full" disabled={!canManage} value={settings.specialty} onChange={(event) => update('specialty', event.target.value)} placeholder="Especialidade" />
+          <select className="select full" disabled={!canManage} value={settings.tone} onChange={(event) => update('tone', event.target.value)}><option value="">Selecionar tom de voz...</option>{tonePresets.map((preset) => <option key={preset} value={preset}>{preset}</option>)}</select>
+          <input className="input full" disabled={!canManage} value={settings.tone} onChange={(event) => update('tone', event.target.value)} placeholder="Tom personalizado" />
+          <select className="select full" disabled={!canManage} value={settings.specialty} onChange={(event) => update('specialty', event.target.value)}><option value="">Selecionar especialidade...</option>{specialtyPresets.map((preset) => <option key={preset} value={preset}>{preset}</option>)}</select>
+          <input className="input full" disabled={!canManage} value={settings.specialty} onChange={(event) => update('specialty', event.target.value)} placeholder="Especialidade personalizada" />
           <textarea className="textarea full" disabled={!canManage} value={settings.instructions} onChange={(event) => update('instructions', event.target.value)} placeholder="Instruções comerciais" />
-          <textarea className="textarea full" disabled={!canManage} value={settings.knowledge_base || ''} onChange={(event) => update('knowledge_base', event.target.value)} placeholder="Base de conhecimento da empresa: diferenciais, serviços, objeções, garantias" />
+          <select className="select full" disabled={!canManage} value={settings.knowledge_base || ''} onChange={(event) => update('knowledge_base', event.target.value)}><option value="">Selecionar base de conhecimento...</option>{knowledgePresets.map((preset) => <option key={preset} value={preset}>{preset}</option>)}</select>
+          <textarea className="textarea full" disabled={!canManage} value={settings.knowledge_base || ''} onChange={(event) => update('knowledge_base', event.target.value)} placeholder="Base de conhecimento personalizada: diferenciais, serviços, objeções, garantias" />
         </div>
         <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', marginTop: 14 }}>
           <button className={settings.auto_suggest ? 'btn success' : 'btn'} disabled={!canManage} onClick={() => update('auto_suggest', !settings.auto_suggest)}>Sugestão automática</button>
