@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
-import { getCurrentProfile, listWhatsAppConversations, listWhatsAppMessages } from '@/lib/supabase/crm-repository';
+import { getCurrentProfile, listCompanyProfiles, listQuickMessages, listWhatsAppConversations, listWhatsAppMessages, type ProfileRow } from '@/lib/supabase/crm-repository';
+import type { QuickMessage } from '@/types/crm';
 
 type Conversa = {
   id: string;
@@ -10,6 +11,9 @@ type Conversa = {
   customer_name: string | null;
   customer_phone: string;
   status: string;
+  priority?: string;
+  channel?: string;
+  assigned_to?: string | null;
   last_message_at: string | null;
 };
 
@@ -23,6 +27,7 @@ type Mensagem = {
 
 const statusOptions = ['Aberta', 'Em atendimento', 'Resolvida', 'Arquivada'];
 const filterOptions = ['Todas', ...statusOptions];
+const priorityOptions = ['Baixa', 'Normal', 'Alta', 'Urgente'];
 
 function formatDate(value?: string | null) {
   if (!value) return 'Sem data';
@@ -35,8 +40,22 @@ function normalizePhone(value: string) {
   return value.replace(/\D/g, '');
 }
 
+function mapQuickMessage(row: any, index: number): QuickMessage {
+  return {
+    id: index + 1,
+    dbId: row.id,
+    title: row.title,
+    category: row.category,
+    active: row.active,
+    text: row.content
+  };
+}
+
 export function AtendimentoPage() {
   const [companyId, setCompanyId] = useState<string | null>(null);
+  const [currentProfile, setCurrentProfile] = useState<ProfileRow | null>(null);
+  const [team, setTeam] = useState<ProfileRow[]>([]);
+  const [quickMessages, setQuickMessages] = useState<QuickMessage[]>([]);
   const [conversas, setConversas] = useState<Conversa[]>([]);
   const [selectedConversa, setSelectedConversa] = useState<Conversa | null>(null);
   const [mensagens, setMensagens] = useState<Mensagem[]>([]);
@@ -50,6 +69,24 @@ export function AtendimentoPage() {
   const [creatingTest, setCreatingTest] = useState(false);
   const [changingStatus, setChangingStatus] = useState(false);
   const [statusFilter, setStatusFilter] = useState('Todas');
+  const [ownerFilter, setOwnerFilter] = useState('Todos');
+  const [priorityFilter, setPriorityFilter] = useState('Todas');
+  const [transferTo, setTransferTo] = useState('');
+
+  async function getAccessToken() {
+    const supabase = createSupabaseBrowserClient() as any;
+    if (!supabase) throw new Error('Supabase não configurado.');
+    const { data, error } = await supabase.auth.getSession();
+    if (error) throw error;
+    const token = data.session?.access_token;
+    if (!token) throw new Error('Sessão expirada. Entre novamente no CRM.');
+    return token;
+  }
+
+  function assigneeName(id?: string | null) {
+    if (!id) return 'Sem responsável';
+    return team.find((member) => member.id === id)?.name || 'Responsável não identificado';
+  }
 
   async function loadInbox() {
     setLoading(true);
@@ -57,12 +94,20 @@ export function AtendimentoPage() {
       const profile = await getCurrentProfile();
       if (!profile?.company_id) return;
       setCompanyId(profile.company_id);
-      const data = await listWhatsAppConversations(profile.company_id);
-      const nextConversas = data as Conversa[];
+      setCurrentProfile(profile);
+
+      const [conversationRows, teamRows, messageRows] = await Promise.all([
+        listWhatsAppConversations(profile.company_id),
+        listCompanyProfiles(profile.company_id),
+        listQuickMessages(profile.company_id)
+      ]);
+
+      setTeam(teamRows.filter((member) => member.status === 'active'));
+      setQuickMessages((messageRows || []).map(mapQuickMessage).filter((message) => message.active));
+
+      const nextConversas = conversationRows as Conversa[];
       setConversas(nextConversas);
-      if (!selectedConversa && nextConversas[0]) {
-        setSelectedConversa(nextConversas[0]);
-      }
+      if (!selectedConversa && nextConversas[0]) setSelectedConversa(nextConversas[0]);
     } catch (error) {
       console.error('Falha ao carregar atendimento.', error);
     } finally {
@@ -85,34 +130,34 @@ export function AtendimentoPage() {
     }
   }
 
-  async function changeConversationStatus(nextStatus: string) {
-    if (!companyId || !selectedConversa) return;
+  async function updateConversation(payload: { status?: string; assignedTo?: string | null; priority?: string }, successMessage?: string) {
+    if (!selectedConversa) return;
 
     setChangingStatus(true);
     try {
-      const response = await fetch('/api/atendimento/status', {
+      const token = await getAccessToken();
+      const response = await fetch('/api/atendimento/update', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          companyId,
-          conversationId: selectedConversa.id,
-          status: nextStatus
-        })
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ conversationId: selectedConversa.id, ...payload })
       });
 
       const result = await response.json();
-
       if (!response.ok || !result.ok) {
-        alert(result.error || 'Não foi possível alterar o status da conversa.');
+        alert(result.error || 'Não foi possível atualizar a conversa.');
         return;
       }
 
       const updated = result.conversation as Conversa;
       setSelectedConversa(updated);
       setConversas((current) => current.map((conversa) => conversa.id === updated.id ? updated : conversa));
+      if (successMessage) alert(successMessage);
     } catch (error) {
-      console.error('Falha ao alterar status da conversa.', error);
-      alert('Não foi possível alterar o status da conversa.');
+      console.error('Falha ao atualizar atendimento.', error);
+      alert('Não foi possível atualizar a conversa.');
     } finally {
       setChangingStatus(false);
     }
@@ -147,6 +192,9 @@ export function AtendimentoPage() {
           customer_phone: phone,
           customer_name: testName.trim() || 'Cliente Teste',
           status: 'Aberta',
+          priority: 'Normal',
+          channel: 'WhatsApp',
+          assigned_to: profile.id,
           last_message_at: now
         })
         .select('*')
@@ -183,7 +231,7 @@ export function AtendimentoPage() {
   }
 
   async function sendReply() {
-    if (!companyId || !selectedConversa) {
+    if (!selectedConversa) {
       alert('Selecione uma conversa antes de responder.');
       return;
     }
@@ -195,11 +243,14 @@ export function AtendimentoPage() {
 
     setSending(true);
     try {
+      const token = await getAccessToken();
       const response = await fetch('/api/whatsapp/send', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
         body: JSON.stringify({
-          companyId,
           conversationId: selectedConversa.id,
           contactId: selectedConversa.contact_id || null,
           toPhone: selectedConversa.customer_phone,
@@ -225,39 +276,48 @@ export function AtendimentoPage() {
     }
   }
 
-  useEffect(() => {
-    loadInbox();
-  }, []);
+  useEffect(() => { loadInbox(); }, []);
+  useEffect(() => { if (companyId && selectedConversa) openConversa(selectedConversa); }, [companyId, selectedConversa?.id]);
 
-  useEffect(() => {
-    if (companyId && selectedConversa) {
-      openConversa(selectedConversa);
-    }
-  }, [companyId, selectedConversa?.id]);
+  const filteredConversas = useMemo(() => conversas.filter((conversa) =>
+    (statusFilter === 'Todas' || conversa.status === statusFilter) &&
+    (priorityFilter === 'Todas' || (conversa.priority || 'Normal') === priorityFilter) &&
+    (ownerFilter === 'Todos' || (ownerFilter === 'Sem responsável' ? !conversa.assigned_to : conversa.assigned_to === ownerFilter))
+  ), [conversas, statusFilter, priorityFilter, ownerFilter]);
 
-  const filteredConversas = statusFilter === 'Todas'
-    ? conversas
-    : conversas.filter((conversa) => conversa.status === statusFilter);
+  const queueStats = {
+    abertas: conversas.filter((item) => item.status === 'Aberta').length,
+    atendimento: conversas.filter((item) => item.status === 'Em atendimento').length,
+    resolvidas: conversas.filter((item) => item.status === 'Resolvida').length,
+    arquivadas: conversas.filter((item) => item.status === 'Arquivada').length
+  };
 
   return (
     <div className="grid two-col">
       <div className="card pad">
         <div className="section-title">
-          <h2>Conversas recebidas</h2>
+          <h2>Fila de atendimento</h2>
           <span>{loading ? 'Carregando...' : `${filteredConversas.length} conversa(s)`}</span>
         </div>
-        <button className="btn small" onClick={loadInbox}>Atualizar</button>
+        <div className="grid metrics" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', marginBottom: 12 }}>
+          <div className="metric"><span>Abertas</span><strong>{queueStats.abertas}</strong><small>aguardando</small></div>
+          <div className="metric"><span>Em atendimento</span><strong>{queueStats.atendimento}</strong><small>em andamento</small></div>
+          <div className="metric"><span>Resolvidas</span><strong>{queueStats.resolvidas}</strong><small>finalizadas</small></div>
+          <div className="metric"><span>Arquivadas</span><strong>{queueStats.arquivadas}</strong><small>histórico</small></div>
+        </div>
+        <button className="btn small" onClick={loadInbox}>Atualizar fila</button>
 
         <div className="form-grid" style={{ marginTop: 12, marginBottom: 12 }}>
-          {filterOptions.map((filter) => (
-            <button
-              key={filter}
-              className={statusFilter === filter ? 'btn primary' : 'btn'}
-              onClick={() => setStatusFilter(filter)}
-            >
-              {filter}
-            </button>
-          ))}
+          {filterOptions.map((filter) => <button key={filter} className={statusFilter === filter ? 'btn primary' : 'btn'} onClick={() => setStatusFilter(filter)}>{filter}</button>)}
+          <select className="select" value={ownerFilter} onChange={(event) => setOwnerFilter(event.target.value)}>
+            <option>Todos</option>
+            <option>Sem responsável</option>
+            {team.map((member) => <option key={member.id} value={member.id}>{member.name}</option>)}
+          </select>
+          <select className="select" value={priorityFilter} onChange={(event) => setPriorityFilter(event.target.value)}>
+            <option>Todas</option>
+            {priorityOptions.map((priority) => <option key={priority}>{priority}</option>)}
+          </select>
         </div>
 
         <div className="timeline">
@@ -265,9 +325,9 @@ export function AtendimentoPage() {
             <button className="timeline-item" key={conversa.id} onClick={() => openConversa(conversa)} style={{ textAlign: 'left', width: '100%' }}>
               <b>{conversa.customer_name || 'Cliente sem nome'}</b>
               <br />
-              <span className="notice">{conversa.customer_phone} • {conversa.status}</span>
+              <span className="notice">{conversa.customer_phone} • {conversa.status} • {conversa.priority || 'Normal'}</span>
               <br />
-              <span className="notice">Última mensagem: {formatDate(conversa.last_message_at)}</span>
+              <span className="notice">Responsável: {assigneeName(conversa.assigned_to)} • Última: {formatDate(conversa.last_message_at)}</span>
             </button>
           ))}
           {!filteredConversas.length && <div className="empty">Nenhuma conversa encontrada para este filtro.</div>}
@@ -279,20 +339,30 @@ export function AtendimentoPage() {
           <h2>{selectedConversa?.customer_name || 'Histórico da conversa'}</h2>
           <span>{selectedConversa?.customer_phone || 'Selecione uma conversa'}</span>
         </div>
+
+        <div className="timeline-item">
+          <b>Gestão da conversa</b>
+          <p className="notice">Status: {selectedConversa?.status || '—'} • Prioridade: {selectedConversa?.priority || 'Normal'} • Responsável: {assigneeName(selectedConversa?.assigned_to)}</p>
+        </div>
+
         <div className="form-grid" style={{ marginBottom: 12 }}>
-          <select
-            className="select"
-            disabled={!selectedConversa || changingStatus}
-            value={selectedConversa?.status || 'Aberta'}
-            onChange={(event) => changeConversationStatus(event.target.value)}
-          >
+          <select className="select" disabled={!selectedConversa || changingStatus} value={selectedConversa?.status || 'Aberta'} onChange={(event) => updateConversation({ status: event.target.value })}>
             {statusOptions.map((status) => <option key={status}>{status}</option>)}
           </select>
-
-          <button className="btn small" disabled={!selectedConversa} onClick={() => selectedConversa && openConversa(selectedConversa)}>
-            {loadingMessages ? 'Carregando...' : 'Atualizar conversa'}
-          </button>
+          <select className="select" disabled={!selectedConversa || changingStatus} value={selectedConversa?.priority || 'Normal'} onChange={(event) => updateConversation({ priority: event.target.value })}>
+            {priorityOptions.map((priority) => <option key={priority}>{priority}</option>)}
+          </select>
+          <select className="select" disabled={!selectedConversa || changingStatus} value={transferTo} onChange={(event) => setTransferTo(event.target.value)}>
+            <option value="">Transferir para...</option>
+            {team.map((member) => <option key={member.id} value={member.id}>{member.name}</option>)}
+          </select>
+          <button className="btn" disabled={!selectedConversa || !currentProfile} onClick={() => updateConversation({ assignedTo: currentProfile?.id || null, status: 'Em atendimento' }, 'Atendimento assumido.')}>Assumir</button>
+          <button className="btn" disabled={!selectedConversa || !transferTo} onClick={() => updateConversation({ assignedTo: transferTo, status: 'Em atendimento' }, 'Atendimento transferido.')}>Transferir</button>
+          <button className="btn success" disabled={!selectedConversa} onClick={() => updateConversation({ status: 'Resolvida' }, 'Conversa resolvida.')}>Resolver</button>
+          <button className="btn danger" disabled={!selectedConversa} onClick={() => updateConversation({ status: 'Arquivada' }, 'Conversa arquivada.')}>Arquivar</button>
+          <button className="btn small" disabled={!selectedConversa} onClick={() => selectedConversa && openConversa(selectedConversa)}>{loadingMessages ? 'Carregando...' : 'Atualizar conversa'}</button>
         </div>
+
         <div className="timeline">
           {mensagens.map((mensagem) => (
             <div className="timeline-item" key={mensagem.id}>
@@ -305,25 +375,22 @@ export function AtendimentoPage() {
         </div>
 
         <div className="form-grid" style={{ marginTop: 16 }}>
+          <select className="select full" onChange={(event) => setReplyText(event.target.value)} defaultValue="">
+            <option value="">Inserir mensagem rápida...</option>
+            {quickMessages.map((message) => <option key={message.dbId || message.id} value={message.text}>{message.title} • {message.category}</option>)}
+          </select>
           <textarea className="input full" placeholder="Digite sua resposta..." value={replyText} onChange={(event) => setReplyText(event.target.value)} style={{ minHeight: 90 }} />
-          <button className="btn primary full" disabled={!selectedConversa || sending} onClick={sendReply}>
-            {sending ? 'Enviando...' : 'Enviar resposta'}
-          </button>
+          <button className="btn primary full" disabled={!selectedConversa || sending} onClick={sendReply}>{sending ? 'Enviando...' : 'Enviar resposta'}</button>
           <p className="notice full">Sem token da Meta, a resposta fica registrada como fila/rascunho no CRM. Com token ativo, o envio será feito pela API oficial.</p>
         </div>
 
         <div className="card pad" style={{ marginTop: 16 }}>
-          <div className="section-title">
-            <h2>Teste manual</h2>
-            <span>Validação sem Meta</span>
-          </div>
+          <div className="section-title"><h2>Teste manual</h2><span>Validação sem Meta</span></div>
           <div className="form-grid">
             <input className="input" value={testName} onChange={(event) => setTestName(event.target.value)} placeholder="Nome do cliente" />
             <input className="input" value={testPhone} onChange={(event) => setTestPhone(event.target.value)} placeholder="Telefone" />
             <textarea className="input full" value={testMessage} onChange={(event) => setTestMessage(event.target.value)} placeholder="Mensagem recebida" style={{ minHeight: 80 }} />
-            <button className="btn full" disabled={creatingTest} onClick={createTestConversation}>
-              {creatingTest ? 'Criando...' : 'Criar conversa teste'}
-            </button>
+            <button className="btn full" disabled={creatingTest} onClick={createTestConversation}>{creatingTest ? 'Criando...' : 'Criar conversa teste'}</button>
           </div>
         </div>
       </div>
