@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from 'react';
+import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { getCurrentProfile, listWhatsAppConversations, listWhatsAppMessages } from '@/lib/supabase/crm-repository';
 
 type Conversa = {
@@ -27,6 +28,10 @@ function formatDate(value?: string | null) {
   return date.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 }
 
+function normalizePhone(value: string) {
+  return value.replace(/\D/g, '');
+}
+
 export function AtendimentoPage() {
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [conversas, setConversas] = useState<Conversa[]>([]);
@@ -36,6 +41,10 @@ export function AtendimentoPage() {
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [replyText, setReplyText] = useState('');
   const [sending, setSending] = useState(false);
+  const [testName, setTestName] = useState('Cliente Teste');
+  const [testPhone, setTestPhone] = useState('5598999999999');
+  const [testMessage, setTestMessage] = useState('Olá, quero saber mais sobre a proposta.');
+  const [creatingTest, setCreatingTest] = useState(false);
 
   async function loadInbox() {
     setLoading(true);
@@ -68,6 +77,70 @@ export function AtendimentoPage() {
       console.error('Falha ao carregar mensagens da conversa.', error);
     } finally {
       setLoadingMessages(false);
+    }
+  }
+
+  async function createTestConversation() {
+    const supabase = createSupabaseBrowserClient() as any;
+    if (!supabase) {
+      alert('Supabase não configurado neste ambiente.');
+      return;
+    }
+
+    const profile = await getCurrentProfile();
+    if (!profile?.company_id) {
+      alert('Usuário sem empresa vinculada.');
+      return;
+    }
+
+    const phone = normalizePhone(testPhone);
+    if (!phone || !testMessage.trim()) {
+      alert('Informe telefone e mensagem de teste.');
+      return;
+    }
+
+    setCreatingTest(true);
+    try {
+      const now = new Date().toISOString();
+      const { data: conversa, error: conversaError } = await supabase
+        .from('whatsapp_conversations')
+        .insert({
+          company_id: profile.company_id,
+          customer_phone: phone,
+          customer_name: testName.trim() || 'Cliente Teste',
+          status: 'Aberta',
+          last_message_at: now
+        })
+        .select('*')
+        .single();
+
+      if (conversaError) throw conversaError;
+
+      const { error: messageError } = await supabase
+        .from('whatsapp_messages')
+        .insert({
+          company_id: profile.company_id,
+          conversation_id: conversa.id,
+          direction: 'inbound',
+          from_phone: phone,
+          to_phone: 'CRM',
+          message_type: 'text',
+          body: testMessage.trim(),
+          status: 'received',
+          raw_payload: { source: 'manual_test' },
+          created_at: now
+        });
+
+      if (messageError) throw messageError;
+
+      await loadInbox();
+      await openConversa(conversa as Conversa);
+      alert('Conversa teste criada.');
+    } catch (error) {
+      console.error('Falha ao criar conversa teste.', error);
+      alert('Não foi possível criar a conversa teste.');
+    } finally {
+      setCreatingTest(false);
     }
   }
 
@@ -171,6 +244,21 @@ export function AtendimentoPage() {
             {sending ? 'Enviando...' : 'Enviar resposta'}
           </button>
           <p className="notice full">Sem token da Meta, a resposta fica registrada como fila/rascunho no CRM. Com token ativo, o envio será feito pela API oficial.</p>
+        </div>
+
+        <div className="card pad" style={{ marginTop: 16 }}>
+          <div className="section-title">
+            <h2>Teste manual</h2>
+            <span>Validação sem Meta</span>
+          </div>
+          <div className="form-grid">
+            <input className="input" value={testName} onChange={(event) => setTestName(event.target.value)} placeholder="Nome do cliente" />
+            <input className="input" value={testPhone} onChange={(event) => setTestPhone(event.target.value)} placeholder="Telefone" />
+            <textarea className="input full" value={testMessage} onChange={(event) => setTestMessage(event.target.value)} placeholder="Mensagem recebida" style={{ minHeight: 80 }} />
+            <button className="btn full" disabled={creatingTest} onClick={createTestConversation}>
+              {creatingTest ? 'Criando...' : 'Criar conversa teste'}
+            </button>
+          </div>
         </div>
       </div>
     </div>
