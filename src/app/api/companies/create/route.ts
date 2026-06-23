@@ -60,5 +60,13 @@ export async function POST(request: Request) {
     return Response.json({ ok: false, error: 'Não foi possível criar a empresa.' }, { status: 500 });
   }
 
+  await context.service.from('company_plan_audit_logs').insert({
+    company_id: company.id,
+    actor_profile_id: context.profile.id,
+    action: 'company_created',
+    previous_value: null,
+    next_value: company
+  });
+
   return Response.json({ ok: true, company });
 }
