@@ -18,7 +18,10 @@ const actionLabels: Record<string, string> = {
   user_created: 'Usuário criado',
   user_updated: 'Usuário atualizado',
   user_status_updated: 'Status de usuário alterado',
-  user_role_updated: 'Perfil de usuário alterado'
+  user_role_updated: 'Perfil de usuário alterado',
+  user_removed: 'Usuário removido da lista',
+  user_access_sent: 'Acesso enviado ao usuário',
+  user_password_reset: 'Acesso recuperado'
 };
 
 async function getAccessToken() {
@@ -48,9 +51,10 @@ function describeLog(log: AuditLog) {
   const name = nextValue.name || nextValue.email || previousValue.name || previousValue.email || nextValue.company_name || 'Registro administrativo';
   const role = nextValue.role ? ` • ${nextValue.role}` : '';
   const status = nextValue.status ? ` • ${nextValue.status}` : '';
+  const invite = nextValue.invite_status ? ` • ${nextValue.invite_status}` : '';
   const plan = nextValue.plan_name ? ` • Plano ${nextValue.plan_name}` : '';
   const limit = nextValue.user_limit ? ` • ${nextValue.user_limit} usuários` : '';
-  return `${name}${role}${status}${plan}${limit}`;
+  return `${name}${role}${status}${invite}${plan}${limit}`;
 }
 
 type AuditPanelProps = {
@@ -91,7 +95,7 @@ export function AuditPanel({ refreshKey }: AuditPanelProps) {
         <h2>Auditoria administrativa</h2>
         <span>{loading ? 'Carregando...' : `${logs.length} registro(s)`}</span>
       </div>
-      <p className="notice">Histórico das ações importantes feitas em empresas, planos, limites e acessos da equipe.</p>
+      <p className="notice">Histórico das ações importantes feitas em empresas, planos, limites, acessos e onboarding da equipe.</p>
 
       <div className="timeline" style={{ marginTop: 16 }}>
         {logs.map((log) => (
