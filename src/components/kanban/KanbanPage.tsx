@@ -45,6 +45,13 @@ function createEditForm(deal: Opportunity): OpportunityEditForm {
   };
 }
 
+function parseCurrencyValue(value: string) {
+  const normalized = value.replace(/\./g, '').replace(',', '.').replace(/[^\d.]/g, '');
+  if (!normalized) return 0;
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
 export function KanbanPage({ leads, deals, moveDeal, updateDeal, markWon, markLost, openConversation, setSelectedLead }: KanbanPageProps) {
   const [editingDealId, setEditingDealId] = useState<number | null>(null);
   const [editForm, setEditForm] = useState<OpportunityEditForm | null>(null);
@@ -90,7 +97,16 @@ export function KanbanPage({ leads, deals, moveDeal, updateDeal, markWon, markLo
                     <div className="form-grid">
                       <strong>{lead.name}</strong>
                       <input className="input full" value={editForm.title} onChange={(event) => setEditForm({ ...editForm, title: event.target.value })} />
-                      <input className="input" type="number" value={editForm.value} onChange={(event) => setEditForm({ ...editForm, value: Number(event.target.value) })} />
+                      <label className="currency-field">
+                        <span>R$</span>
+                        <input
+                          className="input"
+                          inputMode="decimal"
+                          placeholder="0,00"
+                          value={editForm.value === 0 ? '' : String(editForm.value).replace('.', ',')}
+                          onChange={(event) => setEditForm({ ...editForm, value: parseCurrencyValue(event.target.value) })}
+                        />
+                      </label>
                       <select className="select" value={editForm.stage} onChange={(event) => setEditForm({ ...editForm, stage: event.target.value as PipelineStage, status: event.target.value === 'Fechado' ? 'Ganha' : event.target.value === 'Perdido' ? 'Perdida' : 'Aberta' })}>
                         {PIPELINE_STAGES.map((pipelineStage) => <option key={pipelineStage}>{pipelineStage}</option>)}
                       </select>
