@@ -1,24 +1,36 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { roleDescriptions, roleLabels } from '@/lib/crm/permissions';
 import { formFromWhatsAppAccount, initialWhatsAppAccountForm, loadWhatsAppAccounts, saveWhatsAppAccount, type WhatsAppAccount, type WhatsAppAccountForm } from '@/lib/whatsapp/account-persistence';
+import { getCurrentProfile, listCompanyProfiles, type ProfileRow } from '@/lib/supabase/crm-repository';
+import type { UserRole } from '@/types/crm';
 
-const permissionProfiles = [
-  'Admin Empresa — acesso total',
-  'Gestor — equipe, relatórios e funil',
-  'Vendedor — próprios leads e oportunidades',
-  'Atendente — cadastro e atendimento',
-  'Financeiro — vendas fechadas e valores'
-];
-
+const roles: UserRole[] = ['Admin Empresa', 'Gestor', 'Vendedor', 'Atendente', 'Financeiro'];
 const webhookUrl = 'https://clack-crm-conversacional.vercel.app/api/whatsapp/webhook';
 const verifyToken = 'clackcrm_verifica_webhook_2026';
 
-export function SettingsPage() {
+type SettingsPageProps = {
+  currentRole: UserRole;
+  currentUserName: string;
+  setUserRole: (role: UserRole) => void;
+};
+
+export function SettingsPage({ currentRole, currentUserName, setUserRole }: SettingsPageProps) {
   const [accounts, setAccounts] = useState<WhatsAppAccount[]>([]);
   const [selectedAccount, setSelectedAccount] = useState<WhatsAppAccount | null>(null);
   const [accountForm, setAccountForm] = useState<WhatsAppAccountForm>(initialWhatsAppAccountForm);
   const [loadingAccounts, setLoadingAccounts] = useState(false);
+  const [team, setTeam] = useState<ProfileRow[]>([]);
+  const [loadingTeam, setLoadingTeam] = useState(false);
+
+  const canViewTeam = currentRole === 'Admin Empresa' || currentRole === 'Gestor';
+  const canManageTeam = currentRole === 'Admin Empresa';
+
+  const roleCounts = useMemo(() => roles.map((role) => ({
+    role,
+    count: team.filter((member) => roleLabels[role].toLowerCase().includes((member.role || '').toLowerCase()) || member.role === role).length
+  })), [team]);
 
   useEffect(() => {
     let cancelled = false;
@@ -35,12 +47,28 @@ export function SettingsPage() {
       }
     }
 
+    async function loadTeam() {
+      if (!canViewTeam) return;
+      setLoadingTeam(true);
+      try {
+        const profile = await getCurrentProfile();
+        if (!profile?.company_id) return;
+        const data = await listCompanyProfiles(profile.company_id);
+        if (!cancelled) setTeam(data);
+      } catch (error) {
+        console.error('Falha ao carregar equipe.', error);
+      } finally {
+        if (!cancelled) setLoadingTeam(false);
+      }
+    }
+
     loadAccounts();
+    loadTeam();
 
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [canViewTeam]);
 
   function editAccount(account: WhatsAppAccount) {
     setSelectedAccount(account);
@@ -86,11 +114,80 @@ export function SettingsPage() {
       </div>
 
       <div className="card pad">
-        <h2>Perfis e permissões</h2>
-        {permissionProfiles.map((profile) => (
-          <div className="timeline-item" key={profile}>{profile}</div>
+        <div className="section-title">
+          <h2>Perfis e permissões</h2>
+          <span>{currentUserName}</span>
+        </div>
+        {roles.map((role) => (
+          <div className="timeline-item" key={role}>
+            <b>{roleLabels[role]}</b>
+            <p className="notice">{roleDescriptions[role]}</p>
+          </div>
         ))}
       </div>
+
+      {canViewTeam && (
+        <div className="card pad">
+          <div className="section-title">
+            <h2>Equipe e acessos</h2>
+            <span>{loadingTeam ? 'Carregando...' : `${team.length || 1} pessoa(s)`}</span>
+          </div>
+
+          <div className="grid metrics" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))' }}>
+            {roleCounts.map((item) => (
+              <div className="metric" key={item.role}>
+                <span>{item.role}</span>
+                <strong>{item.count || (item.role === currentRole ? 1 : 0)}</strong>
+                <small>usuário(s)</small>
+              </div>
+            ))}
+          </div>
+
+          <div className="timeline" style={{ marginTop: 16 }}>
+            {team.map((member) => (
+              <div className="timeline-item" key={member.id}>
+                <b>{member.name}</b>
+                <p className="notice">{member.email} • {member.role} • {member.status}</p>
+              </div>
+            ))}
+            {!team.length && (
+              <div className="timeline-item">
+                <b>{currentUserName}</b>
+                <p className="notice">Usuário atual • {currentRole}</p>
+              </div>
+            )}
+          </div>
+
+          {canManageTeam ? (
+            <div className="timeline-item" style={{ marginTop: 16 }}>
+              <b>Criação de novos acessos</b>
+              <p className="notice">Somente o Admin Empresa pode criar Gestor, Vendedor, Atendente e Financeiro. Para a apresentação, use o modo abaixo para visualizar cada perfil. A criação real de novos logins fica protegida no Supabase Auth.</p>
+            </div>
+          ) : (
+            <div className="timeline-item" style={{ marginTop: 16 }}>
+              <b>Acesso de gestor</b>
+              <p className="notice">O Gestor visualiza a equipe e os indicadores, mas não cria novos logins.</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {canManageTeam && (
+        <div className="card pad">
+          <div className="section-title">
+            <h2>Visualizar como</h2>
+            <span>Modo apresentação</span>
+          </div>
+          <p className="notice">Use estes botões para demonstrar, sem sair do CRM, como cada perfil enxerga menus e funcionalidades.</p>
+          <div className="form-grid">
+            {roles.map((role) => (
+              <button key={role} className={currentRole === role ? 'btn primary' : 'btn'} onClick={() => setUserRole(role)}>
+                {role}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="card pad">
         <div className="section-title">
