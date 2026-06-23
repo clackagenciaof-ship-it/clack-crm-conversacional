@@ -12,6 +12,7 @@ const nav = [
   ['kanban', 'Kanban'],
   ['tasks', 'Tarefas'],
   ['messages', 'Mensagens'],
+  ['inbox', 'Atendimento'],
   ['reports', 'Relatórios'],
   ['settings', 'Configurações']
 ] as const;
