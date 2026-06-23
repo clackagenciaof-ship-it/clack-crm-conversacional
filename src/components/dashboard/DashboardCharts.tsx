@@ -24,9 +24,9 @@ export function DashboardCharts({ leads }: DashboardChartsProps) {
   }));
   const totalTemps = Math.max(tempCounts.reduce((sum, item) => sum + item.count, 0), 1);
   const pieColors: Record<LeadTemperature, string> = {
-    Quente: '#e86b42',
-    Morno: '#d5a51c',
-    Frio: '#36a7bd'
+    Quente: '#ff5a2f',
+    Morno: '#f4b000',
+    Frio: '#00a6c8'
   };
 
   let current = 0;
@@ -40,29 +40,39 @@ export function DashboardCharts({ leads }: DashboardChartsProps) {
     .join(', ');
 
   return (
-    <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', marginTop: 16 }}>
-      <div className="card pad">
+    <div className="grid dashboard-charts" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', marginTop: 16 }}>
+      <div className="card pad chart-card premium-chart">
         <div className="section-title">
           <h2>Gráfico de linhas</h2>
           <span>Evolução de leads</span>
         </div>
         <svg viewBox="0 0 330 150" width="100%" height="160" role="img" aria-label="Evolução semanal de leads">
-          <path d="M34 124 H318" stroke="#c9dfdd" strokeWidth="2" />
-          <path d="M34 84 H318" stroke="#d9ebe9" strokeWidth="1" />
-          <path d="M34 44 H318" stroke="#d9ebe9" strokeWidth="1" />
-          <polyline points={linePoints} fill="none" stroke="#005954" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" />
+          <defs>
+            <linearGradient id="lineGradient" x1="0" x2="1" y1="0" y2="0">
+              <stop offset="0%" stopColor="#003d39" />
+              <stop offset="52%" stopColor="#008f86" />
+              <stop offset="100%" stopColor="#00d7c7" />
+            </linearGradient>
+            <filter id="lineGlow" x="-20%" y="-20%" width="140%" height="140%">
+              <feDropShadow dx="0" dy="8" stdDeviation="5" floodColor="#005954" floodOpacity="0.28" />
+            </filter>
+          </defs>
+          <path d="M34 124 H318" stroke="#b9d9d5" strokeWidth="2" />
+          <path d="M34 84 H318" stroke="#d4e9e6" strokeWidth="1" />
+          <path d="M34 44 H318" stroke="#d4e9e6" strokeWidth="1" />
+          <polyline points={linePoints} fill="none" stroke="url(#lineGradient)" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round" filter="url(#lineGlow)" />
           {weeklyLine.map((value, index) => (
-            <circle key={index} cx={34 + index * 47} cy={122 - (value / maxLine) * 82} r="5" fill="#5dc1b9" stroke="#005954" strokeWidth="2" />
+            <circle key={index} cx={34 + index * 47} cy={122 - (value / maxLine) * 82} r="6" fill="#d5ffff" stroke="#005954" strokeWidth="3" />
           ))}
         </svg>
       </div>
 
-      <div className="card pad">
+      <div className="card pad chart-card premium-chart">
         <div className="section-title">
           <h2>Gráfico de barras</h2>
           <span>Leads por origem</span>
         </div>
-        <div className="report-bars">
+        <div className="report-bars premium-bars">
           {sourceCounts.map((item) => (
             <div className="bar" key={item.name}>
               <span>
@@ -75,13 +85,13 @@ export function DashboardCharts({ leads }: DashboardChartsProps) {
         </div>
       </div>
 
-      <div className="card pad">
+      <div className="card pad chart-card premium-chart">
         <div className="section-title">
           <h2>Gráfico de pizza</h2>
           <span>Temperatura</span>
         </div>
         <div style={{ display: 'grid', placeItems: 'center', gap: 12 }}>
-          <div style={{ width: 142, height: 142, borderRadius: '50%', background: `conic-gradient(${pieGradient})`, boxShadow: '0 18px 40px rgba(0,89,84,.14)' }} />
+          <div className="premium-pie" style={{ background: `conic-gradient(${pieGradient})` }} />
           <div style={{ display: 'grid', gap: 8, width: '100%' }}>
             {tempCounts.map((item) => (
               <span key={item.name} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
