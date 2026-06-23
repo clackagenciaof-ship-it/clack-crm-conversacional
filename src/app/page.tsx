@@ -12,6 +12,7 @@ import { MessagesPage } from "@/components/messages/MessagesPage";
 import { ReportsPage } from "@/components/reports/ReportsPage";
 import { SettingsPage } from "@/components/settings/SettingsPage";
 import { TasksPage } from "@/components/tasks/TasksPage";
+import { canAccessScreen, getDefaultScreenForRole, roleDescriptions } from "@/lib/crm/permissions";
 import { useCrmMvpState } from "@/hooks/useCrmMvpState";
 
 export default function Home() {
@@ -19,15 +20,29 @@ export default function Home() {
 
   if (!crm.logged) return <Login onLogin={crm.login} />;
 
-  return (
-    <AppShell screen={crm.screen} setScreen={crm.setScreen}>
-      <Header screen={crm.screen} setScreen={crm.setScreen} dataNotice={crm.dataNotice} loadingRealData={crm.loadingRealData} onLogout={crm.logout} />
+  const canAccessCurrentScreen = canAccessScreen(crm.userRole, crm.screen);
 
-      {crm.screen === "dashboard" && (
-        <DashboardPage leads={crm.leads} deals={crm.deals} tasks={crm.tasks} setScreen={crm.setScreen} />
+  function safeSetScreen(nextScreen: typeof crm.screen) {
+    crm.setScreen(canAccessScreen(crm.userRole, nextScreen) ? nextScreen : getDefaultScreenForRole(crm.userRole));
+  }
+
+  return (
+    <AppShell screen={crm.screen} setScreen={safeSetScreen} userRole={crm.userRole}>
+      <Header screen={crm.screen} setScreen={safeSetScreen} dataNotice={crm.dataNotice} loadingRealData={crm.loadingRealData} userRole={crm.userRole} onLogout={crm.logout} />
+
+      {!canAccessCurrentScreen && (
+        <div className="card pad access-card">
+          <h2>Acesso ajustado ao seu perfil</h2>
+          <p className="notice">{roleDescriptions[crm.userRole]}</p>
+          <button className="btn primary" onClick={() => crm.setScreen(getDefaultScreenForRole(crm.userRole))}>Ir para minha área</button>
+        </div>
       )}
 
-      {crm.screen === "leads" && (
+      {canAccessCurrentScreen && crm.screen === "dashboard" && (
+        <DashboardPage leads={crm.leads} deals={crm.deals} tasks={crm.tasks} setScreen={safeSetScreen} />
+      )}
+
+      {canAccessCurrentScreen && crm.screen === "leads" && (
         <LeadsPage
           leads={crm.filteredLeads}
           leadForm={crm.leadForm}
@@ -47,7 +62,7 @@ export default function Home() {
         />
       )}
 
-      {crm.screen === "kanban" && (
+      {canAccessCurrentScreen && crm.screen === "kanban" && (
         <KanbanPage
           leads={crm.leads}
           deals={crm.deals}
@@ -60,7 +75,7 @@ export default function Home() {
         />
       )}
 
-      {crm.screen === "tasks" && (
+      {canAccessCurrentScreen && crm.screen === "tasks" && (
         <TasksPage
           tasks={crm.tasks}
           leads={crm.leads}
@@ -73,19 +88,19 @@ export default function Home() {
         />
       )}
 
-      {crm.screen === "messages" && (
+      {canAccessCurrentScreen && crm.screen === "messages" && (
         <MessagesPage messages={crm.messages} setMessages={crm.setMessages} copyMessage={crm.copyMessage} />
       )}
 
-      {crm.screen === "inbox" && <AtendimentoPage />}
+      {canAccessCurrentScreen && crm.screen === "inbox" && <AtendimentoPage />}
 
-      {crm.screen === "reports" && (
+      {canAccessCurrentScreen && crm.screen === "reports" && (
         <ReportsPage leads={crm.leads} deals={crm.deals} tasks={crm.tasks} />
       )}
 
-      {crm.screen === "settings" && <SettingsPage />}
+      {canAccessCurrentScreen && crm.screen === "settings" && <SettingsPage />}
 
-      {crm.selectedLead && (
+      {crm.selectedLead && canAccessCurrentScreen && (
         <LeadDrawer
           lead={crm.selectedLead}
           deals={crm.deals.filter((deal) => deal.leadId === crm.selectedLead?.id)}
