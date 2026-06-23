@@ -7,8 +7,10 @@ import { CampaignPanel } from './CampaignPanel';
 import { CompanyAdminPanel } from './CompanyAdminPanel';
 import { FlowBuilderPanel } from './FlowBuilderPanel';
 import { FunnelAdvancedPanel } from './FunnelAdvancedPanel';
+import { FutureExpansionPanel } from './FutureExpansionPanel';
 import { SettingsPage as BaseSettingsPage } from './SettingsPage';
 import { WhiteLabelPanel } from './WhiteLabelPanel';
+import styles from './SettingsPageWithAdmin.module.css';
 import type { UserRole } from '@/types/crm';
 
 type SettingsPageProps = {
@@ -42,7 +44,10 @@ export function SettingsPage(props: SettingsPageProps) {
       <div style={{ marginBottom: 16 }}>
         <FunnelAdvancedPanel />
       </div>
-      <BaseSettingsPage {...props} />
+      <FutureExpansionPanel />
+      <div className={styles.base}>
+        <BaseSettingsPage {...props} />
+      </div>
     </>
   );
 }
