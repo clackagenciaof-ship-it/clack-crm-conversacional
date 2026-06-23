@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from 'react';
-import { roleDescriptions, roleLabels } from '@/lib/crm/permissions';
+import { normalizeRole, roleDescriptions, roleLabels } from '@/lib/crm/permissions';
 import { deleteWhatsAppAccount, formFromWhatsAppAccount, initialWhatsAppAccountForm, loadWhatsAppAccounts, saveWhatsAppAccount, type WhatsAppAccount, type WhatsAppAccountForm } from '@/lib/whatsapp/account-persistence';
+import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { getCurrentProfile, listCompanyProfiles, type ProfileRow } from '@/lib/supabase/crm-repository';
 import type { UserRole } from '@/types/crm';
 
@@ -16,6 +17,20 @@ type SettingsPageProps = {
   setUserRole: (role: UserRole) => void;
 };
 
+type NewUserForm = {
+  name: string;
+  email: string;
+  password: string;
+  role: UserRole;
+};
+
+const initialNewUserForm: NewUserForm = {
+  name: '',
+  email: '',
+  password: '',
+  role: 'Vendedor'
+};
+
 export function SettingsPage({ currentRole, currentUserName, setUserRole }: SettingsPageProps) {
   const [accounts, setAccounts] = useState<WhatsAppAccount[]>([]);
   const [selectedAccount, setSelectedAccount] = useState<WhatsAppAccount | null>(null);
@@ -23,14 +38,45 @@ export function SettingsPage({ currentRole, currentUserName, setUserRole }: Sett
   const [loadingAccounts, setLoadingAccounts] = useState(false);
   const [team, setTeam] = useState<ProfileRow[]>([]);
   const [loadingTeam, setLoadingTeam] = useState(false);
+  const [savingUser, setSavingUser] = useState(false);
+  const [updatingUserId, setUpdatingUserId] = useState<string | null>(null);
+  const [newUserForm, setNewUserForm] = useState<NewUserForm>(initialNewUserForm);
 
   const canViewTeam = currentRole === 'Admin Empresa' || currentRole === 'Gestor';
   const canManageTeam = currentRole === 'Admin Empresa';
 
   const roleCounts = useMemo(() => roles.map((role) => ({
     role,
-    count: team.filter((member) => roleLabels[role].toLowerCase().includes((member.role || '').toLowerCase()) || member.role === role).length
+    count: team.filter((member) => normalizeRole(member.role) === role).length
   })), [team]);
+
+  async function getAccessToken() {
+    const supabase = createSupabaseBrowserClient() as any;
+    if (!supabase) throw new Error('Supabase não configurado.');
+
+    const { data, error } = await supabase.auth.getSession();
+    if (error) throw error;
+    const token = data.session?.access_token;
+    if (!token) throw new Error('Sessão expirada. Entre novamente no CRM.');
+
+    return token;
+  }
+
+  async function refreshTeam() {
+    if (!canViewTeam) return;
+
+    setLoadingTeam(true);
+    try {
+      const profile = await getCurrentProfile();
+      if (!profile?.company_id) return;
+      const data = await listCompanyProfiles(profile.company_id);
+      setTeam(data);
+    } catch (error) {
+      console.error('Falha ao carregar equipe.', error);
+    } finally {
+      setLoadingTeam(false);
+    }
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -118,6 +164,72 @@ export function SettingsPage({ currentRole, currentUserName, setUserRole }: Sett
     }
   }
 
+  async function createTeamUser() {
+    if (!canManageTeam) return;
+    if (!newUserForm.name.trim() || !newUserForm.email.trim() || !newUserForm.password.trim()) {
+      alert('Informe nome, e-mail e senha inicial.');
+      return;
+    }
+
+    setSavingUser(true);
+    try {
+      const token = await getAccessToken();
+      const response = await fetch('/api/users/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify(newUserForm)
+      });
+
+      const result = await response.json();
+      if (!response.ok || !result.ok) {
+        alert(result.error || 'Não foi possível criar o usuário.');
+        return;
+      }
+
+      setTeam((currentTeam) => [result.profile as ProfileRow, ...currentTeam]);
+      setNewUserForm(initialNewUserForm);
+      alert('Usuário criado com acesso real ao CRM.');
+    } catch (error) {
+      console.error('Falha ao criar usuário.', error);
+      alert('Não foi possível criar o usuário. Confira a sessão e as variáveis da Vercel.');
+    } finally {
+      setSavingUser(false);
+    }
+  }
+
+  async function updateTeamUser(member: ProfileRow, payload: Partial<Pick<ProfileRow, 'name' | 'role' | 'status'>>) {
+    if (!canManageTeam) return;
+
+    setUpdatingUserId(member.id);
+    try {
+      const token = await getAccessToken();
+      const response = await fetch('/api/users/update', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ userId: member.id, ...payload })
+      });
+
+      const result = await response.json();
+      if (!response.ok || !result.ok) {
+        alert(result.error || 'Não foi possível atualizar o usuário.');
+        return;
+      }
+
+      setTeam((currentTeam) => currentTeam.map((item) => item.id === member.id ? result.profile as ProfileRow : item));
+    } catch (error) {
+      console.error('Falha ao atualizar usuário.', error);
+      alert('Não foi possível atualizar o usuário.');
+    } finally {
+      setUpdatingUserId(null);
+    }
+  }
+
   return (
     <div className="grid two-col">
       <div className="card pad">
@@ -160,11 +272,41 @@ export function SettingsPage({ currentRole, currentUserName, setUserRole }: Sett
             ))}
           </div>
 
+          {canManageTeam && (
+            <div className="timeline-item" style={{ marginTop: 16 }}>
+              <b>Criar novo acesso real</b>
+              <p className="notice">Somente o Admin Empresa cria novos logins. O usuário criado entra com e-mail, senha inicial e o perfil escolhido.</p>
+              <div className="form-grid" style={{ marginTop: 12 }}>
+                <input className="input" placeholder="Nome completo" value={newUserForm.name} onChange={(event) => setNewUserForm({ ...newUserForm, name: event.target.value })} />
+                <input className="input" placeholder="E-mail de acesso" value={newUserForm.email} onChange={(event) => setNewUserForm({ ...newUserForm, email: event.target.value })} />
+                <input className="input" placeholder="Senha inicial" type="password" value={newUserForm.password} onChange={(event) => setNewUserForm({ ...newUserForm, password: event.target.value })} />
+                <select className="select" value={newUserForm.role} onChange={(event) => setNewUserForm({ ...newUserForm, role: event.target.value as UserRole })}>
+                  {roles.filter((role) => role !== 'Admin Empresa').map((role) => <option key={role}>{role}</option>)}
+                </select>
+                <button className="btn primary full" disabled={savingUser} onClick={createTeamUser}>{savingUser ? 'Criando...' : 'Criar usuário'}</button>
+              </div>
+            </div>
+          )}
+
           <div className="timeline" style={{ marginTop: 16 }}>
             {team.map((member) => (
               <div className="timeline-item" key={member.id}>
                 <b>{member.name}</b>
-                <p className="notice">{member.email} • {member.role} • {member.status}</p>
+                <p className="notice">{member.email} • {normalizeRole(member.role)} • {member.status === 'active' ? 'Ativo' : 'Inativo'}</p>
+                {canManageTeam && (
+                  <div className="form-grid" style={{ marginTop: 10 }}>
+                    <select className="select" value={normalizeRole(member.role)} disabled={updatingUserId === member.id} onChange={(event) => updateTeamUser(member, { role: event.target.value as UserRole })}>
+                      {roles.map((role) => <option key={role}>{role}</option>)}
+                    </select>
+                    <button
+                      className={member.status === 'active' ? 'btn small danger' : 'btn small success'}
+                      disabled={updatingUserId === member.id}
+                      onClick={() => updateTeamUser(member, { status: member.status === 'active' ? 'inactive' : 'active' })}
+                    >
+                      {member.status === 'active' ? 'Inativar' : 'Ativar'}
+                    </button>
+                  </div>
+                )}
               </div>
             ))}
             {!team.length && (
@@ -177,8 +319,9 @@ export function SettingsPage({ currentRole, currentUserName, setUserRole }: Sett
 
           {canManageTeam ? (
             <div className="timeline-item" style={{ marginTop: 16 }}>
-              <b>Criação de novos acessos</b>
-              <p className="notice">Somente o Admin Empresa pode criar Gestor, Vendedor, Atendente e Financeiro. Para a apresentação, use o modo abaixo para visualizar cada perfil. A criação real de novos logins fica protegida no Supabase Auth.</p>
+              <b>Regra de segurança</b>
+              <p className="notice">A criação e alteração de acessos passam por validação no servidor. Se o usuário logado não for Admin Empresa, a API bloqueia a ação.</p>
+              <button className="btn small" onClick={refreshTeam}>Atualizar equipe</button>
             </div>
           ) : (
             <div className="timeline-item" style={{ marginTop: 16 }}>
