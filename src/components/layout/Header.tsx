@@ -1,11 +1,13 @@
 import { getCrmDataModeLabel } from '@/lib/crm/data-mode';
-import type { Screen } from '@/types/crm';
+import { roleLabels } from '@/lib/crm/permissions';
+import type { Screen, UserRole } from '@/types/crm';
 
 type HeaderProps = {
   screen: Screen;
   setScreen: (screen: Screen) => void;
   dataNotice?: string;
   loadingRealData?: boolean;
+  userRole?: UserRole;
   onLogout?: () => void;
 };
 
@@ -20,7 +22,7 @@ const titles: Record<Screen, string> = {
   settings: 'Configurações'
 };
 
-export function Header({ screen, setScreen, dataNotice, loadingRealData, onLogout }: HeaderProps) {
+export function Header({ screen, setScreen, dataNotice, loadingRealData, userRole = 'Admin Empresa', onLogout }: HeaderProps) {
   const dataModeLabel = loadingRealData ? 'Carregando dados...' : dataNotice || getCrmDataModeLabel();
 
   return (
@@ -28,6 +30,7 @@ export function Header({ screen, setScreen, dataNotice, loadingRealData, onLogou
       <div>
         <h1>{titles[screen]}</h1>
         <p>Clack Growth Company • Seu CRM inteligente de vendas e atendimento • {dataModeLabel}</p>
+        <span className="role-pill">{roleLabels[userRole] || roleLabels['Admin Empresa']}</span>
       </div>
       <div className="top-actions">
         <button className="btn" onClick={() => setScreen('leads')}>Novo Lead</button>
