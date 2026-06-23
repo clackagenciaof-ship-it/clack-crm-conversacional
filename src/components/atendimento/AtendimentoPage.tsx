@@ -5,6 +5,7 @@ import { getCurrentProfile, listWhatsAppConversations, listWhatsAppMessages } fr
 
 type Conversa = {
   id: string;
+  contact_id?: string | null;
   customer_name: string | null;
   customer_phone: string;
   status: string;
@@ -33,6 +34,8 @@ export function AtendimentoPage() {
   const [mensagens, setMensagens] = useState<Mensagem[]>([]);
   const [loading, setLoading] = useState(false);
   const [loadingMessages, setLoadingMessages] = useState(false);
+  const [replyText, setReplyText] = useState('');
+  const [sending, setSending] = useState(false);
 
   async function loadInbox() {
     setLoading(true);
@@ -65,6 +68,49 @@ export function AtendimentoPage() {
       console.error('Falha ao carregar mensagens da conversa.', error);
     } finally {
       setLoadingMessages(false);
+    }
+  }
+
+  async function sendReply() {
+    if (!companyId || !selectedConversa) {
+      alert('Selecione uma conversa antes de responder.');
+      return;
+    }
+
+    if (!replyText.trim()) {
+      alert('Digite uma mensagem antes de enviar.');
+      return;
+    }
+
+    setSending(true);
+    try {
+      const response = await fetch('/api/whatsapp/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          companyId,
+          conversationId: selectedConversa.id,
+          contactId: selectedConversa.contact_id || null,
+          toPhone: selectedConversa.customer_phone,
+          text: replyText
+        })
+      });
+
+      const result = await response.json();
+      if (!response.ok || !result.ok) {
+        alert(result.error || 'Não foi possível enviar a mensagem.');
+        return;
+      }
+
+      setReplyText('');
+      await openConversa(selectedConversa);
+      await loadInbox();
+      alert(result.sent ? 'Mensagem enviada.' : 'Mensagem registrada. O envio real depende do token da Meta.');
+    } catch (error) {
+      console.error('Falha ao enviar resposta.', error);
+      alert('Falha ao enviar resposta.');
+    } finally {
+      setSending(false);
     }
   }
 
@@ -117,6 +163,14 @@ export function AtendimentoPage() {
             </div>
           ))}
           {!mensagens.length && <div className="empty">Nenhuma mensagem nesta conversa ainda.</div>}
+        </div>
+
+        <div className="form-grid" style={{ marginTop: 16 }}>
+          <textarea className="input full" placeholder="Digite sua resposta..." value={replyText} onChange={(event) => setReplyText(event.target.value)} style={{ minHeight: 90 }} />
+          <button className="btn primary full" disabled={!selectedConversa || sending} onClick={sendReply}>
+            {sending ? 'Enviando...' : 'Enviar resposta'}
+          </button>
+          <p className="notice full">Sem token da Meta, a resposta fica registrada como fila/rascunho no CRM. Com token ativo, o envio será feito pela API oficial.</p>
         </div>
       </div>
     </div>
