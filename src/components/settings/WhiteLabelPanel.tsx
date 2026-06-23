@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from 'react';
+import type { ChangeEvent } from 'react';
 import { applyBranding, defaultBranding, loadBranding, saveBranding, type CompanyBranding } from '@/lib/crm/branding-client';
 
 const palettes = [
@@ -41,6 +42,26 @@ export function WhiteLabelPanel() {
     applyBranding(next);
   }
 
+  function handleLogoUpload(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (!['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml'].includes(file.type)) {
+      alert('Envie uma imagem PNG, JPG, WEBP ou SVG.');
+      return;
+    }
+    if (file.size > 650 * 1024) {
+      alert('A imagem precisa ter até 650 KB para salvar com segurança no white label.');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = String(reader.result || '');
+      if (!result) return;
+      update('logo_url', result);
+    };
+    reader.readAsDataURL(file);
+  }
+
   async function submit() {
     setSaving(true);
     try {
@@ -62,7 +83,12 @@ export function WhiteLabelPanel() {
         <div className="form-grid">
           <input className="input" disabled={!canManage} value={branding.app_name} onChange={(event) => update('app_name', event.target.value)} placeholder="Nome do app" />
           <input className="input" disabled={!canManage} value={branding.brand_name} onChange={(event) => update('brand_name', event.target.value)} placeholder="Nome da marca" />
-          <input className="input full" disabled={!canManage} value={branding.logo_url || ''} onChange={(event) => update('logo_url', event.target.value)} placeholder="URL da logo" />
+          <label className="input full" style={{ display: 'grid', gap: 8, cursor: canManage ? 'pointer' : 'not-allowed' }}>
+            <b>Logo da empresa</b>
+            <span className="notice">Envie PNG/JPG/WEBP/SVG até 650 KB ou cole uma URL abaixo.</span>
+            <input disabled={!canManage} type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" onChange={handleLogoUpload} />
+          </label>
+          <input className="input full" disabled={!canManage} value={branding.logo_url || ''} onChange={(event) => update('logo_url', event.target.value)} placeholder="URL da logo ou imagem enviada" />
           <input className="input full" disabled={!canManage} value={branding.custom_domain || ''} onChange={(event) => update('custom_domain', event.target.value)} placeholder="Domínio/subdomínio futuro" />
           <input className="input full" disabled={!canManage} value={branding.welcome_title} onChange={(event) => update('welcome_title', event.target.value)} placeholder="Título comercial" />
           <textarea className="textarea full" disabled={!canManage} value={branding.welcome_subtitle} onChange={(event) => update('welcome_subtitle', event.target.value)} placeholder="Subtítulo de posicionamento" />
@@ -76,10 +102,13 @@ export function WhiteLabelPanel() {
         <div className="deal-actions" style={{ marginTop: 14 }}>
           {palettes.map((palette) => <button className="btn small" key={palette.name} disabled={!canManage} onClick={() => applyPalette(palette)}>{palette.name}</button>)}
         </div>
-        {canManage && <button className="btn primary" style={{ marginTop: 14, width: '100%' }} disabled={saving} onClick={submit}>{saving ? 'Salvando...' : 'Salvar white label'}</button>}
+        <div className="deal-actions" style={{ marginTop: 14 }}>
+          {canManage && <button className="btn" onClick={() => update('logo_url', '')}>Remover logo</button>}
+          {canManage && <button className="btn primary" style={{ flex: 1 }} disabled={saving} onClick={submit}>{saving ? 'Salvando...' : 'Salvar white label'}</button>}
+        </div>
       </div>
       <div className="card pad" style={{ background: `linear-gradient(135deg, ${branding.primary_color}, ${branding.secondary_color}, ${branding.accent_color})`, color: '#fff' }}>
-        <div className="logo-mark" style={{ marginBottom: 18 }}>{branding.app_name?.slice(0, 1) || 'C'}</div>
+        {branding.logo_url ? <img src={branding.logo_url} alt={branding.brand_name} style={{ width: 78, height: 78, objectFit: 'contain', background: 'rgba(255,255,255,.92)', borderRadius: 22, padding: 8, marginBottom: 18 }} /> : <div className="logo-mark" style={{ marginBottom: 18 }}>{branding.app_name?.slice(0, 1) || 'C'}</div>}
         <h2 style={{ color: '#fff', marginTop: 0 }}>{branding.brand_name}</h2>
         <p style={{ color: 'rgba(255,255,255,.88)' }}>{branding.welcome_title}</p>
         <p style={{ color: 'rgba(255,255,255,.76)' }}>{branding.welcome_subtitle}</p>
