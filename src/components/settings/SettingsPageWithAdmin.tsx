@@ -3,6 +3,7 @@
 import { AuditPanel } from './AuditPanel';
 import { AutomationPanel } from './AutomationPanel';
 import { CompanyAdminPanel } from './CompanyAdminPanel';
+import { FlowBuilderPanel } from './FlowBuilderPanel';
 import { FunnelAdvancedPanel } from './FunnelAdvancedPanel';
 import { SettingsPage as BaseSettingsPage } from './SettingsPage';
 import type { UserRole } from '@/types/crm';
@@ -22,6 +23,9 @@ export function SettingsPage(props: SettingsPageProps) {
       </div>
       <div style={{ marginBottom: 16 }}>
         <AutomationPanel />
+      </div>
+      <div style={{ marginBottom: 16 }}>
+        <FlowBuilderPanel />
       </div>
       <div style={{ marginBottom: 16 }}>
         <FunnelAdvancedPanel />
