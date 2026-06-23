@@ -1,11 +1,12 @@
 import { roleScreens } from '@/lib/crm/permissions';
+import type { ReactNode } from 'react';
 import type { Screen, UserRole } from '@/types/crm';
 
 type AppShellProps = {
   screen: Screen;
   setScreen: (screen: Screen) => void;
   userRole?: UserRole;
-  children: React.ReactNode;
+  children: ReactNode;
 };
 
 const nav = [
