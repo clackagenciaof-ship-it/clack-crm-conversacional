@@ -17,10 +17,10 @@ function canManageFunnel(role: string) {
 async function getOrCreateDefaultPipeline(service: any, companyId: string) {
   const { data: existing, error: findError } = await service
     .from('pipelines')
-    .select('id')
+    .select('id, is_default, name')
     .eq('company_id', companyId)
     .order('is_default', { ascending: false })
-    .order('created_at', { ascending: true })
+    .order('name', { ascending: true })
     .limit(1);
 
   if (findError) throw findError;
