@@ -309,6 +309,11 @@ export async function listWhatsAppConversations(companyId: string) {
     customer_phone: string;
     customer_name: string | null;
     status: string;
+    assigned_to: string | null;
+    priority: string;
+    channel: string;
+    archived_at: string | null;
+    resolved_at: string | null;
     last_message_at: string | null;
     created_at: string;
     updated_at: string;
@@ -344,6 +349,7 @@ export async function listWhatsAppMessages(companyId: string, conversationId: st
     company_id: string;
     conversation_id: string | null;
     contact_id: string | null;
+    user_id: string | null;
     direction: string;
     from_phone: string | null;
     to_phone: string | null;
