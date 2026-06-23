@@ -41,6 +41,18 @@ export async function getCurrentProfile() {
   return data as ProfileRow;
 }
 
+export async function listCompanyProfiles(companyId: string) {
+  const supabase = getClientOrThrow();
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('company_id', companyId)
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+  return data as ProfileRow[];
+}
+
 export async function findStageIdByName(companyId: string, stageName: string) {
   const supabase = getClientOrThrow();
   const { data, error } = await supabase
@@ -301,6 +313,20 @@ export async function listWhatsAppConversations(companyId: string) {
     created_at: string;
     updated_at: string;
   }>;
+}
+
+export async function updateWhatsAppConversationStatus(companyId: string, conversationId: string, status: string) {
+  const supabase = getClientOrThrow();
+  const { data, error } = await supabase
+    .from('whatsapp_conversations')
+    .update({ status, updated_at: new Date().toISOString() })
+    .eq('company_id', companyId)
+    .eq('id', conversationId)
+    .select('*')
+    .single();
+
+  if (error) throw error;
+  return data;
 }
 
 export async function listWhatsAppMessages(companyId: string, conversationId: string) {
