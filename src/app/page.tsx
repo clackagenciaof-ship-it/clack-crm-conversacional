@@ -3,12 +3,15 @@
 import { Login } from "@/components/auth/Login";
 import { AtendimentoPage } from "@/components/atendimento/AtendimentoPage";
 import { DashboardPage } from "@/components/dashboard/DashboardPage";
+import { BillingPanel } from "@/components/billing/BillingPanel";
 import { KanbanPage } from "@/components/kanban/KanbanPage";
 import { AppShell } from "@/components/layout/AppShell";
 import { Header } from "@/components/layout/Header";
 import { LeadDrawer } from "@/components/leads/LeadDrawer";
 import { LeadsPage } from "@/components/leads/LeadsPage";
 import { MessagesPage } from "@/components/messages/MessagesPage";
+import { OnboardingPage } from "@/components/onboarding/OnboardingPage";
+import { ProductsPage } from "@/components/products/ProductsPage";
 import { ReportsPage } from "@/components/reports/ReportsPage";
 import { SettingsPage } from "@/components/settings/SettingsPageWithAdmin";
 import { TasksPage } from "@/components/tasks/TasksPage";
@@ -94,9 +97,15 @@ export default function Home() {
 
       {canAccessCurrentScreen && crm.screen === "inbox" && <AtendimentoPage />}
 
+      {canAccessCurrentScreen && crm.screen === "products" && <ProductsPage />}
+
       {canAccessCurrentScreen && crm.screen === "reports" && (
         <ReportsPage leads={crm.leads} deals={crm.deals} tasks={crm.tasks} />
       )}
+
+      {canAccessCurrentScreen && crm.screen === "finance" && <BillingPanel />}
+
+      {canAccessCurrentScreen && crm.screen === "onboarding" && <OnboardingPage />}
 
       {canAccessCurrentScreen && crm.screen === "settings" && (
         <SettingsPage currentRole={crm.userRole} currentUserName={crm.userName} setUserRole={crm.setUserRole} />
