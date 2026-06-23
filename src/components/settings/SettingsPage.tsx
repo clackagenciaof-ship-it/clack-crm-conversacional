@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { roleDescriptions, roleLabels } from '@/lib/crm/permissions';
-import { formFromWhatsAppAccount, initialWhatsAppAccountForm, loadWhatsAppAccounts, saveWhatsAppAccount, type WhatsAppAccount, type WhatsAppAccountForm } from '@/lib/whatsapp/account-persistence';
+import { deleteWhatsAppAccount, formFromWhatsAppAccount, initialWhatsAppAccountForm, loadWhatsAppAccounts, saveWhatsAppAccount, type WhatsAppAccount, type WhatsAppAccountForm } from '@/lib/whatsapp/account-persistence';
 import { getCurrentProfile, listCompanyProfiles, type ProfileRow } from '@/lib/supabase/crm-repository';
 import type { UserRole } from '@/types/crm';
 
@@ -101,6 +101,23 @@ export function SettingsPage({ currentRole, currentUserName, setUserRole }: Sett
     }
   }
 
+  async function handleDeleteAccount(account: WhatsAppAccount) {
+    const label = account.display_phone_number || account.phone_number_id;
+    const confirmed = window.confirm(`Deseja excluir a conta WhatsApp ${label}? Essa ação remove apenas a configuração do CRM.`);
+
+    if (!confirmed) return;
+
+    try {
+      await deleteWhatsAppAccount(account);
+      setAccounts((currentAccounts) => currentAccounts.filter((item) => item.id !== account.id));
+      if (selectedAccount?.id === account.id) resetAccountForm();
+      alert('Conta WhatsApp excluída.');
+    } catch (error) {
+      console.error('Falha ao excluir conta WhatsApp.', error);
+      alert('Não foi possível excluir a conta WhatsApp.');
+    }
+  }
+
   return (
     <div className="grid two-col">
       <div className="card pad">
@@ -196,6 +213,8 @@ export function SettingsPage({ currentRole, currentUserName, setUserRole }: Sett
         </div>
 
         <div className="timeline-item">
+          <b>Para que serve?</b>
+          <p className="notice">Conecta o CRM à API oficial da Meta para receber mensagens reais do WhatsApp, responder pelo CRM, registrar histórico do cliente, controlar status de envio e futuramente usar templates aprovados.</p>
           <b>URL do webhook</b>
           <p className="notice">{webhookUrl}</p>
           <b>Token de verificação</b>
@@ -223,8 +242,9 @@ export function SettingsPage({ currentRole, currentUserName, setUserRole }: Sett
               <span className="notice">Phone Number ID: {account.phone_number_id}</span>
               <br />
               <span className="notice">Business Account ID: {account.business_account_id || 'Não informado'} • {account.status}</span>
-              <div style={{ marginTop: 10 }}>
+              <div style={{ marginTop: 10, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 <button className="btn small" onClick={() => editAccount(account)}>Editar</button>
+                <button className="btn small danger" onClick={() => handleDeleteAccount(account)}>Excluir</button>
               </div>
             </div>
           ))}
