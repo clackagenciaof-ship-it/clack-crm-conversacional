@@ -5,7 +5,7 @@ import { demoLeads, demoOpportunities, demoQuickMessages, demoTasks } from '@/da
 import { formatCurrencyBRL as brl } from '@/lib/crm/formatters';
 import { createRealLeadAndOpportunity, createRealTask, persistOpportunityLost, persistOpportunityStage, persistOpportunityWon, persistTaskCompleted, removeRealTask, statusFromStage, updateRealOpportunity, updateRealTask } from '@/lib/crm/real-persistence';
 import { persistLeadActivity, removeRealLead, updateRealLead } from '@/lib/crm/lead-persistence';
-import { normalizeRole } from '@/lib/crm/permissions';
+import { getDefaultScreenForRole, normalizeRole } from '@/lib/crm/permissions';
 import { hasActiveSupabaseSession, signInWithSupabaseOrDemo, signOutSupabase } from '@/lib/supabase/auth';
 import { getCurrentProfile } from '@/lib/supabase/crm-repository';
 import { useCrmRealLoader } from '@/hooks/useCrmRealLoader';
@@ -73,7 +73,7 @@ export function useCrmMvpState() {
   const [logged, setLogged] = useState(false);
   const [loginNotice, setLoginNotice] = useState('');
   const [screen, setScreen] = useState<Screen>('dashboard');
-  const [userRole, setUserRole] = useState<UserRole>('Admin Empresa');
+  const [userRole, setUserRoleState] = useState<UserRole>('Admin Empresa');
   const [userName, setUserName] = useState('Will');
   const [leads, setLeads] = useState<Lead[]>(demoLeads);
   const [deals, setDeals] = useState<Opportunity[]>(demoOpportunities);
@@ -88,14 +88,20 @@ export function useCrmMvpState() {
   const [taskForm, setTaskForm] = useState<TaskForm>(initialTaskForm);
   const { loadingRealData, dataNotice, reloadRealData } = useCrmRealLoader({ setLeads, setDeals, setTasks, setMessages });
 
+  function applyUserRole(role: UserRole) {
+    setUserRoleState(role);
+    setScreen(getDefaultScreenForRole(role));
+    setSelectedLead(null);
+  }
+
   async function loadCurrentUserProfile() {
     try {
       const profile = await getCurrentProfile();
-      if (profile?.role) setUserRole(normalizeRole(profile.role));
+      if (profile?.role) setUserRoleState(normalizeRole(profile.role));
       if (profile?.name) setUserName(profile.name);
     } catch (error) {
       console.error('Falha ao carregar perfil atual.', error);
-      setUserRole('Admin Empresa');
+      setUserRoleState('Admin Empresa');
     }
   }
 
@@ -139,7 +145,7 @@ export function useCrmMvpState() {
       await loadCurrentUserProfile();
       await reloadRealData();
     } else {
-      setUserRole('Admin Empresa');
+      setUserRoleState('Admin Empresa');
       setUserName('Demo');
     }
 
@@ -151,7 +157,7 @@ export function useCrmMvpState() {
     setLogged(false);
     setScreen('dashboard');
     setSelectedLead(null);
-    setUserRole('Admin Empresa');
+    setUserRoleState('Admin Empresa');
   }
 
   function addHistory(leadId: number, text: string) {
@@ -404,6 +410,7 @@ export function useCrmMvpState() {
     screen,
     setScreen,
     userRole,
+    setUserRole: applyUserRole,
     userName,
     leads,
     deals,
