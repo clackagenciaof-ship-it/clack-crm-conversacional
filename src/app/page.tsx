@@ -1,6 +1,7 @@
 "use client";
 
 import { Login } from "@/components/auth/Login";
+import { AtendimentoPage } from "@/components/atendimento/AtendimentoPage";
 import { DashboardPage } from "@/components/dashboard/DashboardPage";
 import { KanbanPage } from "@/components/kanban/KanbanPage";
 import { AppShell } from "@/components/layout/AppShell";
@@ -75,6 +76,8 @@ export default function Home() {
       {crm.screen === "messages" && (
         <MessagesPage messages={crm.messages} setMessages={crm.setMessages} copyMessage={crm.copyMessage} />
       )}
+
+      {crm.screen === "inbox" && <AtendimentoPage />}
 
       {crm.screen === "reports" && (
         <ReportsPage leads={crm.leads} deals={crm.deals} tasks={crm.tasks} />
