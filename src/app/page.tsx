@@ -98,7 +98,9 @@ export default function Home() {
         <ReportsPage leads={crm.leads} deals={crm.deals} tasks={crm.tasks} />
       )}
 
-      {canAccessCurrentScreen && crm.screen === "settings" && <SettingsPage />}
+      {canAccessCurrentScreen && crm.screen === "settings" && (
+        <SettingsPage currentRole={crm.userRole} currentUserName={crm.userName} setUserRole={crm.setUserRole} />
+      )}
 
       {crm.selectedLead && canAccessCurrentScreen && (
         <LeadDrawer
