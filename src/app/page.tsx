@@ -28,7 +28,7 @@ export default function Home() {
 
   return (
     <AppShell screen={crm.screen} setScreen={safeSetScreen} userRole={crm.userRole}>
-      <Header screen={crm.screen} setScreen={safeSetScreen} dataNotice={crm.dataNotice} loadingRealData={crm.loadingRealData} userRole={crm.userRole} setUserRole={crm.setUserRole} onLogout={crm.logout} />
+      <Header screen={crm.screen} setScreen={safeSetScreen} dataNotice={crm.dataNotice} loadingRealData={crm.loadingRealData} userRole={crm.userRole} onLogout={crm.logout} />
 
       {!canAccessCurrentScreen && (
         <div className="card pad access-card">
