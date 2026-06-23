@@ -7,62 +7,34 @@
 
 .loginFooter {
   border: 1px solid rgba(0, 89, 84, .12);
-  border-radius: 28px;
+  border-radius: 22px;
   background: rgba(255, 255, 255, .72);
   backdrop-filter: blur(16px);
   box-shadow: 0 18px 50px rgba(0, 89, 84, .10);
-  padding: 26px 30px;
-  color: var(--text);
-}
-
-.footerGrid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(220px, 1fr));
-  gap: 26px;
-  padding-bottom: 22px;
-  border-bottom: 1px solid rgba(0, 89, 84, .12);
-}
-
-.footerColumn h3 {
-  margin: 0 0 14px;
-  color: var(--deep);
-  letter-spacing: -.4px;
-  font-size: 18px;
-}
-
-.footerColumn a,
-.footerColumn span {
-  display: block;
+  padding: 18px 24px;
   color: var(--text-soft);
+  text-align: center;
   font-weight: 700;
-  font-size: 15px;
-  line-height: 1.9;
 }
 
-.footerColumn a:hover {
-  color: var(--deep);
+.footerGrid,
+.footerLinks {
+  display: none;
 }
 
 .footerBottom {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 14px;
-  flex-wrap: wrap;
-  padding-top: 18px;
-  color: var(--text-soft);
-  font-weight: 700;
+  display: block;
+  padding: 0;
 }
 
 .footerBottom p {
   margin: 0;
+  font-size: 0;
 }
 
-.footerLinks {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  color: var(--text-soft);
+.footerBottom p::after {
+  content: "© 2026 Clack Growth Company. Todos os direitos reservados.";
+  font-size: 14px;
 }
 
 .whatsappFloat {
@@ -95,22 +67,12 @@
   .loginWrap {
     gap: 16px;
   }
-
-  .footerGrid {
-    grid-template-columns: 1fr;
-    gap: 18px;
-  }
 }
 
 @media (max-width: 640px) {
   .loginFooter {
-    padding: 22px;
-    border-radius: 22px;
-  }
-
-  .footerBottom {
-    align-items: flex-start;
-    flex-direction: column;
+    padding: 16px 18px;
+    border-radius: 18px;
   }
 
   .whatsappFloat {
