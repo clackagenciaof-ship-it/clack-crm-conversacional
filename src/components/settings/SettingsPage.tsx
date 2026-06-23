@@ -5,6 +5,7 @@ import { normalizeRole, roleDescriptions, roleLabels } from '@/lib/crm/permissio
 import { deleteWhatsAppAccount, formFromWhatsAppAccount, initialWhatsAppAccountForm, loadWhatsAppAccounts, saveWhatsAppAccount, type WhatsAppAccount, type WhatsAppAccountForm } from '@/lib/whatsapp/account-persistence';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { getCurrentProfile, listCompanyProfiles, type ProfileRow } from '@/lib/supabase/crm-repository';
+import { UserOnboardingActions } from './UserOnboardingActions';
 import type { UserRole } from '@/types/crm';
 
 const roles: UserRole[] = ['Admin Empresa', 'Gestor', 'Vendedor', 'Atendente', 'Financeiro'];
@@ -56,6 +57,14 @@ function planLabel(plan: CompanyPlan | null) {
 
 function companyLabel(company: CompanyPlan | null) {
   return company?.name || 'Empresa atual';
+}
+
+function inviteLabel(member: ProfileRow) {
+  const status = member.invite_status || 'active';
+  if (status === 'pending') return 'Convite pendente';
+  if (status === 'sent') return 'Acesso enviado';
+  if (status === 'password_reset') return 'Senha atualizada';
+  return 'Acesso ativo';
 }
 
 export function SettingsPage({ currentRole, currentUserName, setUserRole }: SettingsPageProps) {
@@ -126,7 +135,7 @@ export function SettingsPage({ currentRole, currentUserName, setUserRole }: Sett
     });
   }
 
-  async function refreshTeam() {
+  async function refreshTeam(showAlert = false) {
     if (!canViewTeam) return;
 
     setLoadingTeam(true);
@@ -136,8 +145,10 @@ export function SettingsPage({ currentRole, currentUserName, setUserRole }: Sett
       await loadCompanyPlan(profile.company_id);
       const data = await listCompanyProfiles(profile.company_id);
       setTeam(data);
+      if (showAlert) alert('Equipe atualizada.');
     } catch (error) {
       console.error('Falha ao carregar equipe.', error);
+      if (showAlert) alert('Não foi possível atualizar a equipe.');
     } finally {
       setLoadingTeam(false);
     }
@@ -333,9 +344,7 @@ export function SettingsPage({ currentRole, currentUserName, setUserRole }: Sett
     if (!confirmed) return;
 
     const updated = await updateTeamUser(member, { status: 'inactive' });
-    if (updated) {
-      alert('Acesso excluído com segurança. O usuário não conseguirá entrar enquanto estiver inativo.');
-    }
+    if (updated) alert('Acesso excluído com segurança. O usuário não conseguirá entrar enquanto estiver inativo.');
   }
 
   return (
@@ -373,9 +382,7 @@ export function SettingsPage({ currentRole, currentUserName, setUserRole }: Sett
 
           <div className="timeline-item">
             <b>{companyLabel(companyPlan)} • {planLabel(companyPlan)} — limite de usuários</b>
-            <p className="notice">
-              {activeUsers} usuário(s) ativo(s) de {userLimit}. Restam {remainingUsers} acesso(s). {companyPlan?.billing_status === 'active' ? 'Plano ativo.' : 'Plano bloqueado.'}
-            </p>
+            <p className="notice">{activeUsers} usuário(s) ativo(s) de {userLimit}. Restam {remainingUsers} acesso(s). {companyPlan?.billing_status === 'active' ? 'Plano ativo.' : 'Plano bloqueado.'}</p>
             <p className="notice">Inicial: até 5 usuários ativos • Growth: 6 a 10 • Pro: acima de 10. A equipe ADM Clack define plano, limite, upgrade e cobrança.</p>
             {reachedUserLimit && <p className="notice"><b>Limite de usuários atingido. Para adicionar mais acessos, solicite upgrade do plano.</b></p>}
           </div>
@@ -414,9 +421,7 @@ export function SettingsPage({ currentRole, currentUserName, setUserRole }: Sett
               <div className="form-grid" style={{ marginTop: 12 }}>
                 <input className="input full" value={`Empresa vinculada: ${companyLabel(companyPlan)}`} readOnly />
                 <input className="input" value={editUserForm.name} onChange={(event) => setEditUserForm({ ...editUserForm, name: event.target.value })} />
-                <select className="select" value={editUserForm.role} onChange={(event) => setEditUserForm({ ...editUserForm, role: event.target.value as UserRole })}>
-                  {roles.map((role) => <option key={role}>{role}</option>)}
-                </select>
+                <select className="select" value={editUserForm.role} onChange={(event) => setEditUserForm({ ...editUserForm, role: event.target.value as UserRole })}>{roles.map((role) => <option key={role}>{role}</option>)}</select>
                 <select className="select" value={editUserForm.status} onChange={(event) => setEditUserForm({ ...editUserForm, status: event.target.value as 'active' | 'inactive' })}>
                   <option value="active">Ativo</option>
                   <option value="inactive">Inativo</option>
@@ -431,35 +436,25 @@ export function SettingsPage({ currentRole, currentUserName, setUserRole }: Sett
             {visibleTeam.map((member) => (
               <div className="timeline-item" key={member.id}>
                 <b>{member.name}</b>
-                <p className="notice">Empresa: {companyLabel(companyPlan)} • {member.email} • {normalizeRole(member.role)} • {member.status === 'active' ? 'Ativo' : 'Inativo'}</p>
+                <p className="notice">Empresa: {companyLabel(companyPlan)} • {member.email} • {normalizeRole(member.role)} • {member.status === 'active' ? 'Ativo' : 'Inativo'} • {inviteLabel(member)}</p>
                 {canManageTeam && (
                   <div style={{ marginTop: 10, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                     <button className="btn small" disabled={updatingUserId === member.id} onClick={() => startEditMember(member)}>Editar</button>
-                    <button
-                      className={member.status === 'active' ? 'btn small danger' : 'btn small success'}
-                      disabled={updatingUserId === member.id}
-                      onClick={() => updateTeamUser(member, { status: member.status === 'active' ? 'inactive' : 'active' })}
-                    >
-                      {member.status === 'active' ? 'Inativar' : 'Ativar'}
-                    </button>
+                    <button className={member.status === 'active' ? 'btn small danger' : 'btn small success'} disabled={updatingUserId === member.id} onClick={() => updateTeamUser(member, { status: member.status === 'active' ? 'inactive' : 'active' })}>{member.status === 'active' ? 'Inativar' : 'Ativar'}</button>
                     <button className="btn small danger" disabled={updatingUserId === member.id} onClick={() => removeMemberAccess(member)}>Excluir</button>
+                    <UserOnboardingActions member={member} companyName={companyLabel(companyPlan)} disabled={updatingUserId === member.id} />
                   </div>
                 )}
               </div>
             ))}
-            {!visibleTeam.length && (
-              <div className="timeline-item">
-                <b>{currentUserName}</b>
-                <p className="notice">Empresa: {companyLabel(companyPlan)} • Usuário atual • {currentRole}</p>
-              </div>
-            )}
+            {!visibleTeam.length && <div className="empty">Nenhum usuário encontrado para esta empresa.</div>}
           </div>
 
           {canManageTeam ? (
             <div className="timeline-item" style={{ marginTop: 16 }}>
               <b>Regra de segurança</b>
               <p className="notice">A criação e alteração de acessos passam por validação no servidor. O novo acesso sempre é vinculado à mesma empresa do Admin Empresa logado.</p>
-              <button className="btn small" onClick={refreshTeam}>Atualizar equipe</button>
+              <button className="btn small" onClick={() => refreshTeam(true)}>Atualizar equipe</button>
             </div>
           ) : (
             <div className="timeline-item" style={{ marginTop: 16 }}>
@@ -472,71 +467,35 @@ export function SettingsPage({ currentRole, currentUserName, setUserRole }: Sett
 
       {canManageTeam && (
         <div className="card pad">
-          <div className="section-title">
-            <h2>Visualizar como</h2>
-            <span>Modo apresentação</span>
-          </div>
+          <div className="section-title"><h2>Visualizar como</h2><span>Modo apresentação</span></div>
           <p className="notice">Use estes botões para demonstrar, sem sair do CRM, como cada perfil enxerga menus e funcionalidades.</p>
-          <div className="form-grid">
-            {roles.map((role) => (
-              <button key={role} className={currentRole === role ? 'btn primary' : 'btn'} onClick={() => setUserRole(role)}>
-                {role}
-              </button>
-            ))}
-          </div>
+          <div className="form-grid">{roles.map((role) => <button key={role} className={currentRole === role ? 'btn primary' : 'btn'} onClick={() => setUserRole(role)}>{role}</button>)}</div>
         </div>
       )}
 
       <div className="card pad">
-        <div className="section-title">
-          <h2>WhatsApp Cloud API</h2>
-          <span>{loadingAccounts ? 'Carregando...' : `${accounts.length} conta(s)`}</span>
-        </div>
-
+        <div className="section-title"><h2>WhatsApp Cloud API</h2><span>{loadingAccounts ? 'Carregando...' : `${accounts.length} conta(s)`}</span></div>
         <div className="timeline-item">
           <b>Para que serve?</b>
           <p className="notice">Conecta o CRM à API oficial da Meta para receber mensagens reais do WhatsApp, responder pelo CRM, registrar histórico do cliente, controlar status de envio e futuramente usar templates aprovados.</p>
-          <b>URL do webhook</b>
-          <p className="notice">{webhookUrl}</p>
-          <b>Token de verificação</b>
-          <p className="notice">{verifyToken}</p>
+          <b>URL do webhook</b><p className="notice">{webhookUrl}</p>
+          <b>Token de verificação</b><p className="notice">{verifyToken}</p>
         </div>
-
         <div className="form-grid">
           <input className="input full" placeholder="Phone Number ID" value={accountForm.phone_number_id} onChange={(event) => setAccountForm({ ...accountForm, phone_number_id: event.target.value })} />
           <input className="input" placeholder="Número exibido" value={accountForm.display_phone_number} onChange={(event) => setAccountForm({ ...accountForm, display_phone_number: event.target.value })} />
           <input className="input" placeholder="Business Account ID" value={accountForm.business_account_id} onChange={(event) => setAccountForm({ ...accountForm, business_account_id: event.target.value })} />
-          <select className="select" value={accountForm.status} onChange={(event) => setAccountForm({ ...accountForm, status: event.target.value })}>
-            <option>Ativa</option>
-            <option>Em validação</option>
-            <option>Inativa</option>
-          </select>
+          <select className="select" value={accountForm.status} onChange={(event) => setAccountForm({ ...accountForm, status: event.target.value })}><option>Ativa</option><option>Em validação</option><option>Inativa</option></select>
           <button className="btn primary" onClick={handleSaveAccount}>{selectedAccount ? 'Atualizar conta' : 'Salvar conta'}</button>
           <button className="btn" onClick={resetAccountForm}>Nova conta</button>
         </div>
-
         <div className="timeline">
-          {accounts.map((account) => (
-            <div className="timeline-item" key={account.id}>
-              <b>{account.display_phone_number || 'Número sem rótulo'}</b>
-              <br />
-              <span className="notice">Phone Number ID: {account.phone_number_id}</span>
-              <br />
-              <span className="notice">Business Account ID: {account.business_account_id || 'Não informado'} • {account.status}</span>
-              <div style={{ marginTop: 10, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                <button className="btn small" onClick={() => editAccount(account)}>Editar</button>
-                <button className="btn small danger" onClick={() => handleDeleteAccount(account)}>Excluir</button>
-              </div>
-            </div>
-          ))}
+          {accounts.map((account) => <div className="timeline-item" key={account.id}><b>{account.display_phone_number || 'Número sem rótulo'}</b><br /><span className="notice">Phone Number ID: {account.phone_number_id}</span><br /><span className="notice">Business Account ID: {account.business_account_id || 'Não informado'} • {account.status}</span><div style={{ marginTop: 10, display: 'flex', gap: 8, flexWrap: 'wrap' }}><button className="btn small" onClick={() => editAccount(account)}>Editar</button><button className="btn small danger" onClick={() => handleDeleteAccount(account)}>Excluir</button></div></div>)}
           {!accounts.length && <div className="empty">Nenhuma conta WhatsApp cadastrada ainda.</div>}
         </div>
       </div>
 
-      <div className="card pad">
-        <h2>Módulos em breve</h2>
-        <p className="notice">Automação, InfinitePay, API oficial de mensageria, webhooks, white label e IA.</p>
-      </div>
+      <div className="card pad"><h2>Módulos em breve</h2><p className="notice">Automação, InfinitePay, API oficial de mensageria, webhooks, white label e IA.</p></div>
     </div>
   );
 }
