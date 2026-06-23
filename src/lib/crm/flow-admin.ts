@@ -33,6 +33,15 @@ export type FlowForm = {
   steps: Array<{ position: number; step_type: string; message: string; delay_minutes: number }>;
 };
 
+export type FlowSequenceResult = {
+  ok: boolean;
+  completed?: boolean;
+  result?: string;
+  message?: string;
+  flow?: ChatbotFlow;
+  step?: ChatbotFlowStep;
+};
+
 async function getSessionHeader() {
   const supabase = createSupabaseBrowserClient() as any;
   if (!supabase) throw new Error('Supabase não configurado.');
@@ -59,4 +68,15 @@ export async function saveChatbotFlow(form: FlowForm) {
   const result = await response.json();
   if (!response.ok || !result.ok) throw new Error(result.error || 'Não foi possível salvar fluxo automático.');
   return result.flow as ChatbotFlow;
+}
+
+export async function runFlowSequence(params: { conversationId: string; flowId?: string; mode?: 'start' | 'next' | 'restart' }) {
+  const response = await fetch('/api/automation-flows/sequence', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...(await getSessionHeader()) },
+    body: JSON.stringify(params)
+  });
+  const result = await response.json();
+  if (!response.ok || !result.ok) throw new Error(result.error || 'Não foi possível executar fluxo automático.');
+  return result as FlowSequenceResult;
 }
