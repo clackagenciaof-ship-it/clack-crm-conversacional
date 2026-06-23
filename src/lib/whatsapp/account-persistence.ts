@@ -1,3 +1,4 @@
+import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { createWhatsAppAccount, getCurrentProfile, listWhatsAppAccounts, updateWhatsAppAccount } from '@/lib/supabase/crm-repository';
 
 export type WhatsAppAccount = {
@@ -58,4 +59,20 @@ export async function saveWhatsAppAccount(form: WhatsAppAccountForm, account?: W
   }
 
   return createWhatsAppAccount(payload) as Promise<WhatsAppAccount>;
+}
+
+export async function deleteWhatsAppAccount(account: WhatsAppAccount) {
+  const profile = await getCurrentProfile();
+  if (!profile?.company_id) throw new Error('Empresa não vinculada ao usuário atual.');
+
+  const supabase = createSupabaseBrowserClient() as any;
+  if (!supabase) throw new Error('Supabase não configurado.');
+
+  const { error } = await supabase
+    .from('whatsapp_accounts')
+    .delete()
+    .eq('id', account.id)
+    .eq('company_id', profile.company_id);
+
+  if (error) throw error;
 }
