@@ -33,6 +33,38 @@ function getBearerToken(request: Request) {
   return authorization.slice(7).trim();
 }
 
+async function getCompanyPlan(service: any, companyId: string) {
+  const { data, error } = await service
+    .from('companies')
+    .select('plan_name, user_limit, billing_status')
+    .eq('id', companyId)
+    .single();
+
+  if (error) return { plan_name: 'Inicial', user_limit: 5, billing_status: 'active' };
+  return {
+    plan_name: data?.plan_name || 'Inicial',
+    user_limit: Number(data?.user_limit || 5),
+    billing_status: data?.billing_status || 'active'
+  };
+}
+
+async function countActiveUsers(service: any, companyId: string) {
+  const { count, error } = await service
+    .from('profiles')
+    .select('id', { count: 'exact', head: true })
+    .eq('company_id', companyId)
+    .eq('status', 'active');
+
+  if (error) throw error;
+  return count || 0;
+}
+
+function actionFromChange(before: any, after: any) {
+  if (before?.role !== after?.role) return 'user_role_updated';
+  if (before?.status !== after?.status) return 'user_status_updated';
+  return 'user_updated';
+}
+
 export async function POST(request: Request) {
   let payload: UpdateUserPayload;
 
@@ -92,7 +124,7 @@ export async function POST(request: Request) {
 
   const { data: targetProfile, error: targetError } = await service
     .from('profiles')
-    .select('id, company_id, role, status')
+    .select('id, company_id, name, email, role, status')
     .eq('id', payload.userId)
     .single();
 
@@ -106,6 +138,21 @@ export async function POST(request: Request) {
 
   if (payload.userId === creatorProfile.id && payload.status === 'inactive') {
     return Response.json({ ok: false, error: 'O Admin atual não pode inativar o próprio acesso.' }, { status: 400 });
+  }
+
+  if (payload.status === 'active' && targetProfile.status !== 'active') {
+    const plan = await getCompanyPlan(service, creatorProfile.company_id);
+    if (plan.billing_status !== 'active' && plan.billing_status !== 'trial') {
+      return Response.json({ ok: false, error: 'Plano bloqueado. Procure a equipe ADM Clack para regularizar o acesso.' }, { status: 403 });
+    }
+
+    const activeUsers = await countActiveUsers(service, creatorProfile.company_id);
+    if (activeUsers >= plan.user_limit) {
+      return Response.json({
+        ok: false,
+        error: `Limite de usuários atingido no Plano ${plan.plan_name}. Para adicionar mais acessos, solicite upgrade do plano.`
+      }, { status: 403 });
+    }
   }
 
   const updatePayload: Record<string, string> = {};
@@ -122,8 +169,28 @@ export async function POST(request: Request) {
 
   if (updateError) {
     console.error('Falha ao atualizar perfil.', updateError);
-    return Response.json({ ok: false, error: 'Não foi possível atualizar o acesso.' }, { status: 500 });
+    return Response.json({ ok: false, error: updateError.message || 'Não foi possível atualizar o acesso.' }, { status: 500 });
   }
+
+  await service.from('company_plan_audit_logs').insert({
+    company_id: creatorProfile.company_id,
+    actor_profile_id: creatorProfile.id,
+    action: actionFromChange(targetProfile, profile),
+    previous_value: {
+      id: targetProfile.id,
+      name: targetProfile.name,
+      email: targetProfile.email,
+      role: targetProfile.role,
+      status: targetProfile.status
+    },
+    next_value: {
+      id: profile.id,
+      name: profile.name,
+      email: profile.email,
+      role: profile.role,
+      status: profile.status
+    }
+  });
 
   return Response.json({ ok: true, profile });
 }
