@@ -3,7 +3,7 @@
 import { Login } from "@/components/auth/Login";
 import { AtendimentoPage } from "@/components/atendimento/AtendimentoPage";
 import { DashboardPage } from "@/components/dashboard/DashboardPage";
-import { BillingPanel } from "@/components/billing/BillingPanel";
+import { FinancePage } from "@/components/finance/FinancePage";
 import { KanbanPage } from "@/components/kanban/KanbanPage";
 import { AppShell } from "@/components/layout/AppShell";
 import { Header } from "@/components/layout/Header";
@@ -103,7 +103,7 @@ export default function Home() {
         <ReportsPage leads={crm.leads} deals={crm.deals} tasks={crm.tasks} />
       )}
 
-      {canAccessCurrentScreen && crm.screen === "finance" && <BillingPanel />}
+      {canAccessCurrentScreen && crm.screen === "finance" && <FinancePage />}
 
       {canAccessCurrentScreen && crm.screen === "onboarding" && <OnboardingPage />}
 
