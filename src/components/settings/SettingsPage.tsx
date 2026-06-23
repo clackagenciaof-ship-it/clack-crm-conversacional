@@ -31,6 +31,12 @@ type EditUserForm = {
 };
 
 type CompanyPlan = {
+  id: string;
+  name: string;
+  email: string | null;
+  city: string | null;
+  state: string | null;
+  segment: string | null;
   plan_name: string;
   user_limit: number;
   billing_status: string;
@@ -46,6 +52,10 @@ const initialNewUserForm: NewUserForm = {
 function planLabel(plan: CompanyPlan | null) {
   if (!plan) return 'Plano Inicial';
   return `Plano ${plan.plan_name}`;
+}
+
+function companyLabel(company: CompanyPlan | null) {
+  return company?.name || 'Empresa atual';
 }
 
 export function SettingsPage({ currentRole, currentUserName, setUserRole }: SettingsPageProps) {
@@ -93,17 +103,23 @@ export function SettingsPage({ currentRole, currentUserName, setUserRole }: Sett
 
     const { data, error } = await supabase
       .from('companies')
-      .select('plan_name, user_limit, billing_status')
+      .select('id, name, email, city, state, segment, plan_name, user_limit, billing_status')
       .eq('id', companyId)
       .single();
 
     if (error) {
       console.warn('Plano da empresa indisponível. Usando limite padrão.', error);
-      setCompanyPlan({ plan_name: 'Inicial', user_limit: 5, billing_status: 'active' });
+      setCompanyPlan({ id: companyId, name: 'Empresa atual', email: null, city: null, state: null, segment: null, plan_name: 'Inicial', user_limit: 5, billing_status: 'active' });
       return;
     }
 
     setCompanyPlan({
+      id: data?.id || companyId,
+      name: data?.name || 'Empresa atual',
+      email: data?.email || null,
+      city: data?.city || null,
+      state: data?.state || null,
+      segment: data?.segment || null,
       plan_name: data?.plan_name || 'Inicial',
       user_limit: Number(data?.user_limit || 5),
       billing_status: data?.billing_status || 'active'
@@ -222,7 +238,7 @@ export function SettingsPage({ currentRole, currentUserName, setUserRole }: Sett
     }
 
     if (reachedUserLimit) {
-      alert(`Limite de usuários atingido no ${planLabel(companyPlan)}. Para adicionar mais acessos, solicite upgrade do plano.`);
+      alert(`Limite de usuários atingido no ${planLabel(companyPlan)} da empresa ${companyLabel(companyPlan)}. Para adicionar mais acessos, solicite upgrade do plano.`);
       return;
     }
 
@@ -246,7 +262,7 @@ export function SettingsPage({ currentRole, currentUserName, setUserRole }: Sett
 
       setTeam((currentTeam) => [result.profile as ProfileRow, ...currentTeam]);
       setNewUserForm(initialNewUserForm);
-      alert('Usuário criado com acesso real ao CRM.');
+      alert(`Usuário criado com acesso real ao CRM da empresa ${companyLabel(companyPlan)}.`);
     } catch (error) {
       console.error('Falha ao criar usuário.', error);
       alert('Não foi possível criar o usuário. Confira a sessão e as variáveis da Vercel.');
@@ -313,7 +329,7 @@ export function SettingsPage({ currentRole, currentUserName, setUserRole }: Sett
   }
 
   async function removeMemberAccess(member: ProfileRow) {
-    const confirmed = window.confirm(`Deseja excluir o acesso de ${member.name}? Por segurança, o login será inativado e o histórico da equipe será preservado.`);
+    const confirmed = window.confirm(`Deseja excluir o acesso de ${member.name} da empresa ${companyLabel(companyPlan)}? Por segurança, o login será inativado e o histórico da equipe será preservado.`);
     if (!confirmed) return;
 
     const updated = await updateTeamUser(member, { status: 'inactive' });
@@ -325,13 +341,14 @@ export function SettingsPage({ currentRole, currentUserName, setUserRole }: Sett
   return (
     <div className="grid two-col">
       <div className="card pad">
-        <h2>Empresa</h2>
+        <h2>Empresa vinculada</h2>
         <div className="form-grid">
-          <input className="input" defaultValue="Clack Growth Company" />
-          <input className="input" defaultValue="will@clackcrm.com.br" />
-          <input className="input" defaultValue="Nordeste, Sul e Centro-Oeste" />
-          <input className="input" defaultValue="Growth, Marketing, Comercial e RH" />
+          <input className="input" value={companyPlan?.name || 'Carregando empresa...'} readOnly />
+          <input className="input" value={companyPlan?.email || 'E-mail não informado'} readOnly />
+          <input className="input" value={`${companyPlan?.city || 'Cidade não informada'}${companyPlan?.state ? `/${companyPlan.state}` : ''}`} readOnly />
+          <input className="input" value={companyPlan?.segment || 'Segmento não informado'} readOnly />
         </div>
+        <p className="notice" style={{ marginTop: 12 }}>Todos os usuários abaixo pertencem a esta empresa. O vínculo é feito pelo company_id no Supabase e impede mistura entre empresas.</p>
       </div>
 
       <div className="card pad">
@@ -355,7 +372,7 @@ export function SettingsPage({ currentRole, currentUserName, setUserRole }: Sett
           </div>
 
           <div className="timeline-item">
-            <b>{planLabel(companyPlan)} — limite de usuários</b>
+            <b>{companyLabel(companyPlan)} • {planLabel(companyPlan)} — limite de usuários</b>
             <p className="notice">
               {activeUsers} usuário(s) ativo(s) de {userLimit}. Restam {remainingUsers} acesso(s). {companyPlan?.billing_status === 'active' ? 'Plano ativo.' : 'Plano bloqueado.'}
             </p>
@@ -376,8 +393,9 @@ export function SettingsPage({ currentRole, currentUserName, setUserRole }: Sett
           {canManageTeam && (
             <div className="timeline-item" style={{ marginTop: 16 }}>
               <b>Criar novo acesso real</b>
-              <p className="notice">Somente o Admin Empresa cria novos logins, respeitando o limite contratado no plano.</p>
+              <p className="notice">Somente o Admin Empresa cria novos logins para <b>{companyLabel(companyPlan)}</b>, respeitando o limite contratado no plano.</p>
               <div className="form-grid" style={{ marginTop: 12 }}>
+                <input className="input full" value={`Empresa: ${companyLabel(companyPlan)}`} readOnly />
                 <input className="input" placeholder="Nome completo" value={newUserForm.name} onChange={(event) => setNewUserForm({ ...newUserForm, name: event.target.value })} />
                 <input className="input" placeholder="E-mail de acesso" value={newUserForm.email} onChange={(event) => setNewUserForm({ ...newUserForm, email: event.target.value })} />
                 <input className="input" placeholder="Senha inicial" type="password" value={newUserForm.password} onChange={(event) => setNewUserForm({ ...newUserForm, password: event.target.value })} />
@@ -392,8 +410,9 @@ export function SettingsPage({ currentRole, currentUserName, setUserRole }: Sett
           {canManageTeam && editingMember && editUserForm && (
             <div className="timeline-item" style={{ marginTop: 16 }}>
               <b>Editar usuário</b>
-              <p className="notice">{editingMember.email}</p>
+              <p className="notice">{editingMember.email} • Empresa: {companyLabel(companyPlan)}</p>
               <div className="form-grid" style={{ marginTop: 12 }}>
+                <input className="input full" value={`Empresa vinculada: ${companyLabel(companyPlan)}`} readOnly />
                 <input className="input" value={editUserForm.name} onChange={(event) => setEditUserForm({ ...editUserForm, name: event.target.value })} />
                 <select className="select" value={editUserForm.role} onChange={(event) => setEditUserForm({ ...editUserForm, role: event.target.value as UserRole })}>
                   {roles.map((role) => <option key={role}>{role}</option>)}
@@ -412,7 +431,7 @@ export function SettingsPage({ currentRole, currentUserName, setUserRole }: Sett
             {visibleTeam.map((member) => (
               <div className="timeline-item" key={member.id}>
                 <b>{member.name}</b>
-                <p className="notice">{member.email} • {normalizeRole(member.role)} • {member.status === 'active' ? 'Ativo' : 'Inativo'}</p>
+                <p className="notice">Empresa: {companyLabel(companyPlan)} • {member.email} • {normalizeRole(member.role)} • {member.status === 'active' ? 'Ativo' : 'Inativo'}</p>
                 {canManageTeam && (
                   <div style={{ marginTop: 10, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                     <button className="btn small" disabled={updatingUserId === member.id} onClick={() => startEditMember(member)}>Editar</button>
@@ -431,7 +450,7 @@ export function SettingsPage({ currentRole, currentUserName, setUserRole }: Sett
             {!visibleTeam.length && (
               <div className="timeline-item">
                 <b>{currentUserName}</b>
-                <p className="notice">Usuário atual • {currentRole}</p>
+                <p className="notice">Empresa: {companyLabel(companyPlan)} • Usuário atual • {currentRole}</p>
               </div>
             )}
           </div>
@@ -439,13 +458,13 @@ export function SettingsPage({ currentRole, currentUserName, setUserRole }: Sett
           {canManageTeam ? (
             <div className="timeline-item" style={{ marginTop: 16 }}>
               <b>Regra de segurança</b>
-              <p className="notice">A criação e alteração de acessos passam por validação no servidor. Se o usuário logado não for Admin Empresa, a API bloqueia a ação.</p>
+              <p className="notice">A criação e alteração de acessos passam por validação no servidor. O novo acesso sempre é vinculado à mesma empresa do Admin Empresa logado.</p>
               <button className="btn small" onClick={refreshTeam}>Atualizar equipe</button>
             </div>
           ) : (
             <div className="timeline-item" style={{ marginTop: 16 }}>
               <b>Acesso de gestor</b>
-              <p className="notice">O Gestor visualiza a equipe e os indicadores, mas não cria novos logins.</p>
+              <p className="notice">O Gestor visualiza somente a equipe da empresa {companyLabel(companyPlan)} e os indicadores, mas não cria novos logins.</p>
             </div>
           )}
         </div>
