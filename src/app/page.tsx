@@ -10,7 +10,7 @@ import { LeadDrawer } from "@/components/leads/LeadDrawer";
 import { LeadsPage } from "@/components/leads/LeadsPage";
 import { MessagesPage } from "@/components/messages/MessagesPage";
 import { ReportsPage } from "@/components/reports/ReportsPage";
-import { SettingsPage } from "@/components/settings/SettingsPage";
+import { SettingsPage } from "@/components/settings/SettingsPageWithAdmin";
 import { TasksPage } from "@/components/tasks/TasksPage";
 import { canAccessScreen, getDefaultScreenForRole, roleDescriptions } from "@/lib/crm/permissions";
 import { useCrmMvpState } from "@/hooks/useCrmMvpState";
