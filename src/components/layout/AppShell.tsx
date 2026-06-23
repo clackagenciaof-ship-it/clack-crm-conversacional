@@ -15,7 +15,10 @@ const nav = [
   ['tasks', 'Tarefas'],
   ['messages', 'Mensagens'],
   ['inbox', 'Atendimento'],
+  ['products', 'Produtos'],
   ['reports', 'Relatórios'],
+  ['finance', 'Financeiro'],
+  ['onboarding', 'Onboarding'],
   ['settings', 'Configurações']
 ] as const;
 
