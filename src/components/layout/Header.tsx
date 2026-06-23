@@ -1,5 +1,5 @@
 import { getCrmDataModeLabel } from '@/lib/crm/data-mode';
-import { roleLabels } from '@/lib/crm/permissions';
+import { roleLabels, roleScreens } from '@/lib/crm/permissions';
 import type { Screen, UserRole } from '@/types/crm';
 
 type HeaderProps = {
@@ -24,6 +24,9 @@ const titles: Record<Screen, string> = {
 
 export function Header({ screen, setScreen, dataNotice, loadingRealData, userRole = 'Admin Empresa', onLogout }: HeaderProps) {
   const dataModeLabel = loadingRealData ? 'Carregando dados...' : dataNotice || getCrmDataModeLabel();
+  const allowedScreens = roleScreens[userRole] || roleScreens['Admin Empresa'];
+  const canOpenLeads = allowedScreens.includes('leads');
+  const canOpenKanban = allowedScreens.includes('kanban');
 
   return (
     <div className="topbar">
@@ -33,8 +36,8 @@ export function Header({ screen, setScreen, dataNotice, loadingRealData, userRol
         <span className="role-pill">{roleLabels[userRole] || roleLabels['Admin Empresa']}</span>
       </div>
       <div className="top-actions">
-        <button className="btn" onClick={() => setScreen('leads')}>Novo Lead</button>
-        <button className="btn primary" onClick={() => setScreen('kanban')}>Abrir Funil</button>
+        {canOpenLeads && <button className="btn" onClick={() => setScreen('leads')}>Novo Lead</button>}
+        {canOpenKanban && <button className="btn primary" onClick={() => setScreen('kanban')}>Abrir Funil</button>}
         {onLogout && <button className="btn" onClick={onLogout}>Sair</button>}
       </div>
     </div>
