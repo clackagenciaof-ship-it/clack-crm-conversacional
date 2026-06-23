@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from 'react';
+import { suggestWithAIAgent } from '@/lib/crm/ai-agent-client';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { getCurrentProfile, listCompanyProfiles, listQuickMessages, listWhatsAppConversations, listWhatsAppMessages, type ProfileRow } from '@/lib/supabase/crm-repository';
 import { loadChatbotFlows, runFlowSequence, type ChatbotFlow, type ChatbotFlowStep } from '@/lib/crm/flow-admin';
@@ -13,12 +14,7 @@ const statusOptions = ['Aberta', 'Em atendimento', 'Resolvida', 'Arquivada'];
 const filterOptions = ['Todas', ...statusOptions];
 const priorityOptions = ['Baixa', 'Normal', 'Alta', 'Urgente'];
 
-function formatDate(value?: string | null) {
-  if (!value) return 'Sem data';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
-}
+function formatDate(value?: string | null) { if (!value) return 'Sem data'; const date = new Date(value); if (Number.isNaN(date.getTime())) return value; return date.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }); }
 function normalizePhone(value: string) { return value.replace(/\D/g, ''); }
 function mapQuickMessage(row: any, index: number): QuickMessage { return { id: index + 1, dbId: row.id, title: row.title, category: row.category, active: row.active, text: row.content }; }
 function tokenizeTriggers(value?: string | null) { return (value || '').split(',').map((item) => item.trim().toLowerCase()).filter(Boolean); }
@@ -40,6 +36,7 @@ export function AtendimentoPage() {
   const [replyText, setReplyText] = useState('');
   const [sending, setSending] = useState(false);
   const [sequenceRunning, setSequenceRunning] = useState(false);
+  const [generatingAi, setGeneratingAi] = useState(false);
   const [testName, setTestName] = useState('Cliente Teste');
   const [testPhone, setTestPhone] = useState('5598999999999');
   const [testMessage, setTestMessage] = useState('Olá, quero saber mais sobre a proposta.');
@@ -50,16 +47,7 @@ export function AtendimentoPage() {
   const [priorityFilter, setPriorityFilter] = useState('Todas');
   const [transferTo, setTransferTo] = useState('');
 
-  async function getAccessToken() {
-    const supabase = createSupabaseBrowserClient() as any;
-    if (!supabase) throw new Error('Supabase não configurado.');
-    const { data, error } = await supabase.auth.getSession();
-    if (error) throw error;
-    const token = data.session?.access_token;
-    if (!token) throw new Error('Sessão expirada. Entre novamente no CRM.');
-    return token;
-  }
-
+  async function getAccessToken() { const supabase = createSupabaseBrowserClient() as any; if (!supabase) throw new Error('Supabase não configurado.'); const { data, error } = await supabase.auth.getSession(); if (error) throw error; const token = data.session?.access_token; if (!token) throw new Error('Sessão expirada. Entre novamente no CRM.'); return token; }
   function assigneeName(id?: string | null) { if (!id) return 'Sem responsável'; return team.find((member) => member.id === id)?.name || 'Responsável não identificado'; }
 
   async function loadInbox() {
@@ -67,20 +55,12 @@ export function AtendimentoPage() {
     try {
       const profile = await getCurrentProfile();
       if (!profile?.company_id) return;
-      setCompanyId(profile.company_id);
-      setCurrentProfile(profile);
-      const inboxData = await Promise.all([
-        listWhatsAppConversations(profile.company_id),
-        listCompanyProfiles(profile.company_id),
-        listQuickMessages(profile.company_id),
-        loadChatbotFlows().catch(() => ({ flows: [], steps: [] }))
-      ]);
-
+      setCompanyId(profile.company_id); setCurrentProfile(profile);
+      const inboxData = await Promise.all([listWhatsAppConversations(profile.company_id), listCompanyProfiles(profile.company_id), listQuickMessages(profile.company_id), loadChatbotFlows().catch(() => ({ flows: [], steps: [] }))]);
       const conversationRows = inboxData[0] as Conversa[];
       const teamRows = inboxData[1] as ProfileRow[];
       const messageRows = inboxData[2] as any[];
       const flowData = inboxData[3] as { flows: ChatbotFlow[]; steps: ChatbotFlowStep[] };
-
       setTeam((teamRows || []).filter((member: ProfileRow) => member.status === 'active'));
       setQuickMessages((messageRows || []).map(mapQuickMessage).filter((message: QuickMessage) => message.active));
       setFlows((flowData.flows || []).filter((flow: ChatbotFlow) => flow.active));
@@ -91,26 +71,11 @@ export function AtendimentoPage() {
     } catch (error) { console.error('Falha ao carregar atendimento.', error); } finally { setLoading(false); }
   }
 
-  async function openConversa(conversa: Conversa) {
-    setSelectedConversa(conversa);
-    if (!companyId) return;
-    setLoadingMessages(true);
-    try { const data = await listWhatsAppMessages(companyId, conversa.id); setMensagens(data as Mensagem[]); } catch (error) { console.error('Falha ao carregar mensagens da conversa.', error); } finally { setLoadingMessages(false); }
-  }
+  async function openConversa(conversa: Conversa) { setSelectedConversa(conversa); if (!companyId) return; setLoadingMessages(true); try { const data = await listWhatsAppMessages(companyId, conversa.id); setMensagens(data as Mensagem[]); } catch (error) { console.error('Falha ao carregar mensagens da conversa.', error); } finally { setLoadingMessages(false); } }
 
   async function updateConversation(payload: { status?: string; assignedTo?: string | null; priority?: string }, successMessage?: string) {
-    if (!selectedConversa) return;
-    setChangingStatus(true);
-    try {
-      const token = await getAccessToken();
-      const response = await fetch('/api/atendimento/update', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ conversationId: selectedConversa.id, ...payload }) });
-      const result = await response.json();
-      if (!response.ok || !result.ok) { alert(result.error || 'Não foi possível atualizar a conversa.'); return; }
-      const updated = result.conversation as Conversa;
-      setSelectedConversa(updated);
-      setConversas((current) => current.map((conversa) => conversa.id === updated.id ? updated : conversa));
-      if (successMessage) alert(successMessage);
-    } catch (error) { console.error('Falha ao atualizar atendimento.', error); alert('Não foi possível atualizar a conversa.'); } finally { setChangingStatus(false); }
+    if (!selectedConversa) return; setChangingStatus(true);
+    try { const token = await getAccessToken(); const response = await fetch('/api/atendimento/update', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ conversationId: selectedConversa.id, ...payload }) }); const result = await response.json(); if (!response.ok || !result.ok) { alert(result.error || 'Não foi possível atualizar a conversa.'); return; } const updated = result.conversation as Conversa; setSelectedConversa(updated); setConversas((current) => current.map((conversa) => conversa.id === updated.id ? updated : conversa)); if (successMessage) alert(successMessage); } catch (error) { console.error('Falha ao atualizar atendimento.', error); alert('Não foi possível atualizar a conversa.'); } finally { setChangingStatus(false); }
   }
 
   async function createTestConversation() {
@@ -121,14 +86,7 @@ export function AtendimentoPage() {
     const phone = normalizePhone(testPhone);
     if (!phone || !testMessage.trim()) { alert('Informe telefone e mensagem de teste.'); return; }
     setCreatingTest(true);
-    try {
-      const now = new Date().toISOString();
-      const { data: conversa, error: conversaError } = await supabase.from('whatsapp_conversations').insert({ company_id: profile.company_id, customer_phone: phone, customer_name: testName.trim() || 'Cliente Teste', status: 'Aberta', priority: 'Normal', channel: 'WhatsApp', assigned_to: profile.id, last_message_at: now }).select('*').single();
-      if (conversaError) throw conversaError;
-      const { error: messageError } = await supabase.from('whatsapp_messages').insert({ company_id: profile.company_id, conversation_id: conversa.id, direction: 'inbound', from_phone: phone, to_phone: 'CRM', message_type: 'text', body: testMessage.trim(), status: 'received', raw_payload: { source: 'manual_test' }, created_at: now });
-      if (messageError) throw messageError;
-      await loadInbox(); await openConversa(conversa as Conversa); alert('Conversa teste criada.');
-    } catch (error) { console.error('Falha ao criar conversa teste.', error); alert('Não foi possível criar a conversa teste.'); } finally { setCreatingTest(false); }
+    try { const now = new Date().toISOString(); const { data: conversa, error: conversaError } = await supabase.from('whatsapp_conversations').insert({ company_id: profile.company_id, customer_phone: phone, customer_name: testName.trim() || 'Cliente Teste', status: 'Aberta', priority: 'Normal', channel: 'WhatsApp', assigned_to: profile.id, last_message_at: now }).select('*').single(); if (conversaError) throw conversaError; const { error: messageError } = await supabase.from('whatsapp_messages').insert({ company_id: profile.company_id, conversation_id: conversa.id, direction: 'inbound', from_phone: phone, to_phone: 'CRM', message_type: 'text', body: testMessage.trim(), status: 'received', raw_payload: { source: 'manual_test' }, created_at: now }); if (messageError) throw messageError; await loadInbox(); await openConversa(conversa as Conversa); alert('Conversa teste criada.'); } catch (error) { console.error('Falha ao criar conversa teste.', error); alert('Não foi possível criar a conversa teste.'); } finally { setCreatingTest(false); }
   }
 
   async function sendReply(textOverride?: string) {
@@ -136,29 +94,21 @@ export function AtendimentoPage() {
     const outgoingText = (textOverride ?? replyText).trim();
     if (!outgoingText) { alert('Digite uma mensagem antes de enviar.'); return; }
     setSending(true);
-    try {
-      const token = await getAccessToken();
-      const response = await fetch('/api/whatsapp/send', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ conversationId: selectedConversa.id, contactId: selectedConversa.contact_id || null, toPhone: selectedConversa.customer_phone, text: outgoingText }) });
-      const result = await response.json();
-      if (!response.ok || !result.ok) { alert(result.error || 'Não foi possível enviar a mensagem.'); return; }
-      setReplyText(''); await openConversa(selectedConversa); await loadInbox(); alert(result.sent ? 'Mensagem enviada.' : 'Mensagem registrada. O envio real depende do token da Meta.');
-    } catch (error) { console.error('Falha ao enviar resposta.', error); alert('Falha ao enviar resposta.'); } finally { setSending(false); }
+    try { const token = await getAccessToken(); const response = await fetch('/api/whatsapp/send', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ conversationId: selectedConversa.id, contactId: selectedConversa.contact_id || null, toPhone: selectedConversa.customer_phone, text: outgoingText }) }); const result = await response.json(); if (!response.ok || !result.ok) { alert(result.error || 'Não foi possível enviar a mensagem.'); return; } setReplyText(''); await openConversa(selectedConversa); await loadInbox(); alert(result.sent ? 'Mensagem enviada.' : 'Mensagem registrada. O envio real depende do token da Meta.'); } catch (error) { console.error('Falha ao enviar resposta.', error); alert('Falha ao enviar resposta.'); } finally { setSending(false); }
   }
 
   async function runSelectedFlow(mode: 'start' | 'next' | 'restart') {
     if (!selectedConversa) { alert('Selecione uma conversa.'); return; }
     if (!selectedFlowId && mode !== 'next') { alert('Selecione um fluxo para iniciar.'); return; }
     setSequenceRunning(true);
-    try {
-      const result = await runFlowSequence({ conversationId: selectedConversa.id, flowId: selectedFlowId || undefined, mode });
-      await openConversa(selectedConversa);
-      await loadInbox();
-      if (result.completed && !result.step) alert(result.message || 'Fluxo concluído.');
-      else alert(`${result.step ? `Passo ${result.step.position} executado. ` : ''}${result.result || 'Sequência atualizada.'}${result.completed ? ' Fluxo concluído.' : ''}`);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Não foi possível executar a sequência.';
-      alert(message);
-    } finally { setSequenceRunning(false); }
+    try { const result = await runFlowSequence({ conversationId: selectedConversa.id, flowId: selectedFlowId || undefined, mode }); await openConversa(selectedConversa); await loadInbox(); if (result.completed && !result.step) alert(result.message || 'Fluxo concluído.'); else alert(`${result.step ? `Passo ${result.step.position} executado. ` : ''}${result.result || 'Sequência atualizada.'}${result.completed ? ' Fluxo concluído.' : ''}`); } catch (error) { const message = error instanceof Error ? error.message : 'Não foi possível executar a sequência.'; alert(message); } finally { setSequenceRunning(false); }
+  }
+
+  async function generateWillSuggestion() {
+    if (!selectedConversa) { alert('Selecione uma conversa.'); return; }
+    const lastMessage = [...mensagens].reverse().find((message) => message.direction === 'inbound')?.body || 'Cliente pediu atendimento.';
+    setGeneratingAi(true);
+    try { const suggestion = await suggestWithAIAgent({ context: `Atendimento para ${selectedConversa.customer_name || selectedConversa.customer_phone}`, customer_message: lastMessage, goal: 'Responder, qualificar e conduzir para o próximo passo comercial' }); setReplyText(suggestion); alert('Agente Will sugeriu uma resposta. Revise antes de enviar.'); } catch (error) { alert(error instanceof Error ? error.message : 'Não foi possível gerar sugestão com Will.'); } finally { setGeneratingAi(false); }
   }
 
   useEffect(() => { loadInbox(); }, []);
@@ -196,7 +146,7 @@ export function AtendimentoPage() {
           <div className="form-grid"><select className="select" value={selectedFlowId} onChange={(event) => chooseFlow(event.target.value)}><option value="">Selecionar fluxo...</option>{flows.map((flow) => <option key={flow.id} value={flow.id}>{flow.name}</option>)}</select><select className="select" value={selectedStepId} onChange={(event) => chooseStep(event.target.value)} disabled={!selectedFlowId}><option value="">Selecionar passo...</option>{selectedFlowSteps.map((step) => <option key={step.id} value={step.id}>Passo {step.position} • {step.step_type} • {step.delay_minutes}min</option>)}</select><button className="btn" disabled={!selectedStep} onClick={() => selectedStep?.message && setReplyText(selectedStep.message)}>Inserir passo</button><button className="btn primary" disabled={!selectedConversa || !selectedStep || sending} onClick={() => selectedStep?.message && sendReply(selectedStep.message)}>{sending ? 'Enviando...' : 'Enviar passo'}</button><button className="btn success" disabled={!selectedConversa || !selectedFlowId || sequenceRunning} onClick={() => runSelectedFlow('start')}>{sequenceRunning ? 'Executando...' : 'Iniciar sequência'}</button><button className="btn" disabled={!selectedConversa || sequenceRunning} onClick={() => runSelectedFlow('next')}>Próximo passo automático</button><button className="btn danger" disabled={!selectedConversa || !selectedFlowId || sequenceRunning} onClick={() => runSelectedFlow('restart')}>Reiniciar fluxo</button></div>
           {selectedFlow && <p className="notice" style={{ marginTop: 10 }}>Fluxo: {selectedFlow.name} • {selectedFlow.objective || 'Sem objetivo cadastrado.'}</p>}
         </div>
-        <div className="form-grid" style={{ marginTop: 16 }}><select className="select full" onChange={(event) => setReplyText(event.target.value)} defaultValue=""><option value="">Inserir mensagem rápida...</option>{quickMessages.map((message) => <option key={message.dbId || message.id} value={message.text}>{message.title} • {message.category}</option>)}</select><textarea className="input full" placeholder="Digite sua resposta..." value={replyText} onChange={(event) => setReplyText(event.target.value)} style={{ minHeight: 90 }} /><button className="btn primary full" disabled={!selectedConversa || sending} onClick={() => sendReply()}>{sending ? 'Enviando...' : 'Enviar resposta'}</button><p className="notice full">Sem token da Meta, a resposta fica registrada como fila/rascunho no CRM. Com token ativo, o envio será feito pela API oficial.</p></div>
+        <div className="form-grid" style={{ marginTop: 16 }}><select className="select full" onChange={(event) => setReplyText(event.target.value)} defaultValue=""><option value="">Inserir mensagem rápida...</option>{quickMessages.map((message) => <option key={message.dbId || message.id} value={message.text}>{message.title} • {message.category}</option>)}</select><textarea className="input full" placeholder="Digite sua resposta..." value={replyText} onChange={(event) => setReplyText(event.target.value)} style={{ minHeight: 90 }} /><button className="btn" disabled={!selectedConversa || generatingAi} onClick={generateWillSuggestion}>{generatingAi ? 'Will pensando...' : 'Sugerir com Will'}</button><button className="btn primary" disabled={!selectedConversa || sending} onClick={() => sendReply()}>{sending ? 'Enviando...' : 'Enviar resposta'}</button><p className="notice full">Sem token da Meta, a resposta fica registrada como fila/rascunho no CRM. Com token ativo, o envio será feito pela API oficial.</p></div>
         <div className="card pad" style={{ marginTop: 16 }}><div className="section-title"><h2>Teste manual</h2><span>Validação sem Meta</span></div><div className="form-grid"><input className="input" value={testName} onChange={(event) => setTestName(event.target.value)} placeholder="Nome do cliente" /><input className="input" value={testPhone} onChange={(event) => setTestPhone(event.target.value)} placeholder="Telefone" /><textarea className="input full" value={testMessage} onChange={(event) => setTestMessage(event.target.value)} placeholder="Mensagem recebida" style={{ minHeight: 80 }} /><button className="btn full" disabled={creatingTest} onClick={createTestConversation}>{creatingTest ? 'Criando...' : 'Criar conversa teste'}</button></div></div>
       </div>
     </div>
