@@ -1,6 +1,7 @@
 "use client";
 
 import { AuditPanel } from './AuditPanel';
+import { AutomationPanel } from './AutomationPanel';
 import { CompanyAdminPanel } from './CompanyAdminPanel';
 import { FunnelAdvancedPanel } from './FunnelAdvancedPanel';
 import { SettingsPage as BaseSettingsPage } from './SettingsPage';
@@ -18,6 +19,9 @@ export function SettingsPage(props: SettingsPageProps) {
       <div className="grid two-col" style={{ marginBottom: 16 }}>
         <CompanyAdminPanel />
         <AuditPanel />
+      </div>
+      <div style={{ marginBottom: 16 }}>
+        <AutomationPanel />
       </div>
       <div style={{ marginBottom: 16 }}>
         <FunnelAdvancedPanel />
