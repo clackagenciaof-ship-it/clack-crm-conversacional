@@ -12,7 +12,7 @@ export async function POST(request: Request) {
   if (!context?.profile.company_id) return Response.json({ ok: false, error: 'Empresa atual não encontrada.' }, { status: 400 });
   if (!canManageFunnel(context.profile.role)) return Response.json({ ok: false, error: 'Perfil sem permissão para gerenciar funil.' }, { status: 403 });
 
-  let payload: { stageId?: string };
+  let payload: { stageId?: string; action?: 'archive' | 'restore' };
   try {
     payload = await request.json();
   } catch {
@@ -21,24 +21,27 @@ export async function POST(request: Request) {
 
   if (!payload.stageId) return Response.json({ ok: false, error: 'Etapa é obrigatória.' }, { status: 400 });
 
+  const isRestore = payload.action === 'restore';
+  const updatePayload = isRestore ? { active: true, status: 'active' } : { active: false, status: 'archived' };
+
   const { data: stage, error: updateError } = await context.service
     .from('pipeline_stages')
-    .update({ active: false, status: 'archived' })
+    .update(updatePayload)
     .eq('id', payload.stageId)
     .eq('company_id', context.profile.company_id)
     .select('*')
     .single();
 
   if (updateError) {
-    console.error('Falha ao arquivar etapa.', updateError);
-    return Response.json({ ok: false, error: updateError.message || 'Não foi possível arquivar a etapa.' }, { status: 500 });
+    console.error('Falha ao atualizar etapa.', updateError);
+    return Response.json({ ok: false, error: updateError.message || 'Não foi possível atualizar a etapa.' }, { status: 500 });
   }
 
   await context.service.from('pipeline_stage_audit_logs').insert({
     company_id: context.profile.company_id,
     actor_profile_id: context.profile.id,
     stage_id: stage.id,
-    action: 'stage_archived',
+    action: isRestore ? 'stage_restored' : 'stage_archived',
     next_value: stage
   });
 
