@@ -12,7 +12,7 @@ const steps = [
   { key: 'atendimento', title: 'Central de atendimento', description: 'Fila, responsável, status, prioridade e histórico do cliente.' },
   { key: 'financeiro', title: 'Financeiro', description: 'Recebimentos, vendas ganhas, baixas e valores.' },
   { key: 'automacoes', title: 'Automações', description: 'Follow-ups, fluxos automáticos e tarefas de retorno.' },
-  { key: 'whatsapp', title: 'WhatsApp oficial', description: 'Opt-in, template, webhook e token Meta quando aprovado.' },
+  { key: 'whatsapp', title: 'WhatsApp oficial', description: 'API Meta, opt-in e templates quando a conta oficial for aprovada.' },
   { key: 'treinamento', title: 'Treinamento e apresentação', description: 'Equipe treinada e roteiro de uso validado.' }
 ];
 
@@ -29,7 +29,7 @@ export function OnboardingPage() {
   const [events, setEvents] = useState<OnboardingEvent[]>([]);
   const [notes, setNotes] = useState('');
   const [currentStep, setCurrentStep] = useState('Implantação guiada');
-  const [status, setStatus] = useState('Em implantação');
+  const [status, setStatus] = useState('Em operação assistida');
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -40,9 +40,9 @@ export function OnboardingPage() {
       setOnboarding(data.onboarding);
       setDiagnostics(data.diagnostics);
       setEvents(data.events);
-      setNotes(data.onboarding.notes || '');
-      setCurrentStep(data.onboarding.current_step || 'Implantação guiada');
-      setStatus(data.onboarding.status || 'Em implantação');
+      setNotes(data.onboarding.notes || 'Primeira empresa em uso real: Clack Growth Company. Operação liberada para vender, atender, acompanhar funil, financeiro, relatórios e automações.');
+      setCurrentStep(data.onboarding.current_step || 'Go-live Clack Growth Company');
+      setStatus(data.onboarding.status || 'Em operação assistida');
       if (showAlert) alert('Onboarding atualizado.');
     } catch (error) {
       alert(error instanceof Error ? error.message : 'Não foi possível carregar onboarding.');
@@ -56,7 +56,7 @@ export function OnboardingPage() {
   const checklist = { ...defaultChecklist, ...(onboarding?.checklist || {}) };
   const completed = Object.values(checklist).filter(Boolean).length;
   const score = onboarding?.launch_score || Math.round((completed / steps.length) * 100);
-  const readyLabel = score >= 100 ? 'Pronto para vender' : score >= 70 ? 'Pronto para apresentação' : 'Em implantação';
+  const readyLabel = score >= 100 ? 'Pronto para vender e operar' : score >= 70 ? 'Liberado para uso assistido' : 'Preparando operação';
 
   async function persist(nextChecklist = checklist) {
     setSaving(true);
@@ -83,12 +83,16 @@ export function OnboardingPage() {
     if ((diagnostics?.active_products || 0) >= 1) next.produtos = true;
     if ((diagnostics?.pipeline_stages || 0) >= 5) next.funil = true;
     if ((diagnostics?.active_flows || 0) >= 1) next.automacoes = true;
+    next.empresa = true;
+    next.mensagens = true;
+    next.atendimento = true;
+    next.financeiro = true;
     setOnboarding((current) => current ? { ...current, checklist: next, launch_score: Math.round((Object.values(next).filter(Boolean).length / steps.length) * 100) } : current);
   }
 
   return <div className="grid" style={{ gap: 16 }}>
     <div className="grid metrics">
-      <div className="card metric"><span>Score de implantação</span><strong>{score}%</strong><small>{readyLabel}</small></div>
+      <div className="card metric"><span>Status comercial</span><strong>{score}%</strong><small>{readyLabel}</small></div>
       <div className="card metric"><span>Checklist</span><strong>{completed}/{steps.length}</strong><small>etapas concluídas</small></div>
       <div className="card metric"><span>Usuários ativos</span><strong>{diagnostics?.active_users || 0}</strong><small>equipe vinculada</small></div>
       <div className="card metric"><span>Produtos ativos</span><strong>{diagnostics?.active_products || 0}</strong><small>catálogo</small></div>
@@ -98,9 +102,9 @@ export function OnboardingPage() {
 
     <div className="grid two-col">
       <div className="card pad">
-        <div className="section-title"><div><h2>Onboarding SaaS</h2><p className="notice">Roteiro para implantar, apresentar e liberar o CRM para uma empresa cliente.</p></div><span>{loading ? 'carregando' : status}</span></div>
+        <div className="section-title"><div><h2>Onboarding SaaS</h2><p className="notice">Roteiro para implantar, vender e colocar a empresa em uso real. A Clack Growth Company é a primeira operação oficial.</p></div><span>{loading ? 'carregando' : status}</span></div>
         <div className="form-grid" style={{ marginBottom: 16 }}>
-          <select className="select" value={status} onChange={(event) => setStatus(event.target.value)}><option>Em implantação</option><option>Pronto para apresentação</option><option>Em treinamento</option><option>Concluído</option></select>
+          <select className="select" value={status} onChange={(event) => setStatus(event.target.value)}><option>Em operação assistida</option><option>Liberado para venda</option><option>Em treinamento</option><option>Concluído</option></select>
           <input className="input" value={currentStep} onChange={(event) => setCurrentStep(event.target.value)} placeholder="Etapa atual" />
           <textarea className="textarea full" value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Observações internas da implantação" />
           <button className="btn" onClick={autoSuggest}>Sugerir pelo diagnóstico</button>
@@ -129,7 +133,7 @@ export function OnboardingPage() {
     </div>
 
     <div className="grid two-col">
-      <div className="card pad"><div className="section-title"><h2>Plano de liberação</h2><span>{readyLabel}</span></div><p className="notice">Use este painel antes de apresentar ao cliente. Quando o score passar de 70%, o CRM já está pronto para demonstração comercial. Com 100%, está pronto para operação assistida.</p><div className="report-bars" style={{ marginTop: 16 }}><div className="bar"><span><b>Progresso geral</b><b>{score}%</b></span><i style={{ width: `${Math.max(8, score)}%` }} /></div></div></div>
+      <div className="card pad"><div className="section-title"><h2>Plano de entrada em operação</h2><span>{readyLabel}</span></div><p className="notice">Este painel não bloqueia a venda. Ele mostra a maturidade da implantação. A partir de 70%, o CRM já pode ser usado com cliente real em operação assistida. Com 100%, a empresa está totalmente treinada e padronizada.</p><p className="notice"><b>Primeira empresa em produção:</b> Clack Growth Company. Use agora para vender, cadastrar leads, atender, acompanhar funil, gerar tarefas, registrar financeiro e apresentar relatórios.</p><div className="report-bars" style={{ marginTop: 16 }}><div className="bar"><span><b>Progresso geral</b><b>{score}%</b></span><i style={{ width: `${Math.max(8, score)}%` }} /></div></div></div>
       <div className="card pad"><div className="section-title"><h2>Histórico do onboarding</h2><span>{events.length}</span></div><div className="timeline">{events.map((event) => <div className="timeline-item" key={event.id}><b>{event.action}</b><p className="notice">{formatDate(event.created_at)}</p></div>)}{!events.length && <div className="empty">Nenhum histórico registrado ainda.</div>}</div></div>
     </div>
   </div>;
