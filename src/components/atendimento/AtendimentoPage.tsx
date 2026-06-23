@@ -22,6 +22,7 @@ type Mensagem = {
 };
 
 const statusOptions = ['Aberta', 'Em atendimento', 'Resolvida', 'Arquivada'];
+const filterOptions = ['Todas', ...statusOptions];
 
 function formatDate(value?: string | null) {
   if (!value) return 'Sem data';
@@ -48,6 +49,7 @@ export function AtendimentoPage() {
   const [testMessage, setTestMessage] = useState('Olá, quero saber mais sobre a proposta.');
   const [creatingTest, setCreatingTest] = useState(false);
   const [changingStatus, setChangingStatus] = useState(false);
+  const [statusFilter, setStatusFilter] = useState('Todas');
 
   async function loadInbox() {
     setLoading(true);
@@ -233,16 +235,33 @@ export function AtendimentoPage() {
     }
   }, [companyId, selectedConversa?.id]);
 
+  const filteredConversas = statusFilter === 'Todas'
+    ? conversas
+    : conversas.filter((conversa) => conversa.status === statusFilter);
+
   return (
     <div className="grid two-col">
       <div className="card pad">
         <div className="section-title">
           <h2>Conversas recebidas</h2>
-          <span>{loading ? 'Carregando...' : `${conversas.length} conversa(s)`}</span>
+          <span>{loading ? 'Carregando...' : `${filteredConversas.length} conversa(s)`}</span>
         </div>
         <button className="btn small" onClick={loadInbox}>Atualizar</button>
+
+        <div className="form-grid" style={{ marginTop: 12, marginBottom: 12 }}>
+          {filterOptions.map((filter) => (
+            <button
+              key={filter}
+              className={statusFilter === filter ? 'btn primary' : 'btn'}
+              onClick={() => setStatusFilter(filter)}
+            >
+              {filter}
+            </button>
+          ))}
+        </div>
+
         <div className="timeline">
-          {conversas.map((conversa) => (
+          {filteredConversas.map((conversa) => (
             <button className="timeline-item" key={conversa.id} onClick={() => openConversa(conversa)} style={{ textAlign: 'left', width: '100%' }}>
               <b>{conversa.customer_name || 'Cliente sem nome'}</b>
               <br />
@@ -251,7 +270,7 @@ export function AtendimentoPage() {
               <span className="notice">Última mensagem: {formatDate(conversa.last_message_at)}</span>
             </button>
           ))}
-          {!conversas.length && <div className="empty">Nenhuma conversa recebida ainda.</div>}
+          {!filteredConversas.length && <div className="empty">Nenhuma conversa encontrada para este filtro.</div>}
         </div>
       </div>
 
