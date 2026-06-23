@@ -1,4 +1,4 @@
-export type Screen = 'dashboard' | 'leads' | 'kanban' | 'tasks' | 'messages' | 'inbox' | 'reports' | 'settings';
+export type Screen = 'dashboard' | 'leads' | 'kanban' | 'tasks' | 'messages' | 'inbox' | 'reports' | 'finance' | 'products' | 'onboarding' | 'settings';
 
 export type LeadTemperature = 'Quente' | 'Morno' | 'Frio';
 
