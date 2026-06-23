@@ -8,6 +8,14 @@ type TaskInsert = Database['public']['Tables']['tasks']['Insert'];
 type QuickMessageInsert = Database['public']['Tables']['quick_messages']['Insert'];
 type ActivityLogInsert = Database['public']['Tables']['activity_logs']['Insert'];
 
+type WhatsAppAccountPayload = {
+  company_id: string;
+  phone_number_id: string;
+  display_phone_number?: string | null;
+  business_account_id?: string | null;
+  status?: string;
+};
+
 function getClientOrThrow() {
   const supabase = createSupabaseBrowserClient();
   if (!supabase) {
@@ -234,6 +242,43 @@ export async function deleteQuickMessage(id: string) {
     .eq('id', id);
 
   if (error) throw error;
+}
+
+export async function listWhatsAppAccounts(companyId: string) {
+  const supabase = getClientOrThrow();
+  const { data, error } = await supabase
+    .from('whatsapp_accounts')
+    .select('*')
+    .eq('company_id', companyId)
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+  return data as Array<WhatsAppAccountPayload & { id: string; created_at: string; updated_at: string }>;
+}
+
+export async function createWhatsAppAccount(payload: WhatsAppAccountPayload) {
+  const supabase = getClientOrThrow();
+  const { data, error } = await supabase
+    .from('whatsapp_accounts')
+    .insert(payload)
+    .select('*')
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+export async function updateWhatsAppAccount(id: string, payload: Partial<WhatsAppAccountPayload>) {
+  const supabase = getClientOrThrow();
+  const { data, error } = await supabase
+    .from('whatsapp_accounts')
+    .update({ ...payload, updated_at: new Date().toISOString() })
+    .eq('id', id)
+    .select('*')
+    .single();
+
+  if (error) throw error;
+  return data;
 }
 
 export async function listActivityLogs(companyId: string) {
