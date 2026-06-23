@@ -1,8 +1,10 @@
-import type { Screen } from '@/types/crm';
+import { roleScreens } from '@/lib/crm/permissions';
+import type { Screen, UserRole } from '@/types/crm';
 
 type AppShellProps = {
   screen: Screen;
   setScreen: (screen: Screen) => void;
+  userRole?: UserRole;
   children: React.ReactNode;
 };
 
@@ -17,7 +19,10 @@ const nav = [
   ['settings', 'Configurações']
 ] as const;
 
-export function AppShell({ screen, setScreen, children }: AppShellProps) {
+export function AppShell({ screen, setScreen, userRole = 'Admin Empresa', children }: AppShellProps) {
+  const allowedScreens = roleScreens[userRole] || roleScreens['Admin Empresa'];
+  const visibleNav = nav.filter(([key]) => allowedScreens.includes(key));
+
   return (
     <div className="app">
       <aside className="sidebar">
@@ -30,7 +35,7 @@ export function AppShell({ screen, setScreen, children }: AppShellProps) {
         </div>
 
         <div className="nav">
-          {nav.map(([key, label]) => (
+          {visibleNav.map(([key, label]) => (
             <button key={key} className={screen === key ? 'active' : ''} onClick={() => setScreen(key)}>
               {label}
             </button>
@@ -38,15 +43,15 @@ export function AppShell({ screen, setScreen, children }: AppShellProps) {
         </div>
 
         <div className="sidebar-card">
-          <strong>Próximas fases</strong>
-          <p>Automação, pagamentos InfinitePay, API oficial de mensageria, webhooks, white label e IA aparecem como módulos em breve.</p>
+          <strong>{userRole}</strong>
+          <p>Menu ajustado automaticamente conforme o perfil de acesso ativo.</p>
         </div>
       </aside>
 
       <main className="main">{children}</main>
 
       <div className="mobile-nav">
-        {nav.slice(0, 5).map(([key, label]) => (
+        {visibleNav.slice(0, 5).map(([key, label]) => (
           <button key={key} className={screen === key ? 'active' : ''} onClick={() => setScreen(key)}>
             {label}
           </button>
