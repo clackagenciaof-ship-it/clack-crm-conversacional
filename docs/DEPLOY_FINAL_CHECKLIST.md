@@ -1,76 +1,53 @@
 # CLACK CRM Conversacional — Checklist final antes do redeploy
 
-## Objetivo
-Consolidar a versão comercial do CRM antes de executar um único redeploy na Vercel.
-
 ## Migrations obrigatórias
-Executar no Supabase SQL Editor, nesta ordem, caso ainda não tenham sido executadas:
 
-1. `004_whatsapp_module.sql`
-2. `005_company_plan_limits.sql`
-3. `006_company_access_and_audit.sql`
-4. `007_team_audit_triggers.sql`
-5. `008_role_based_rls.sql`
-6. `009_disable_profile_trigger.sql`
-7. `010_user_onboarding.sql`
+1. 004_whatsapp_module.sql
+2. 005_company_plan_limits.sql
+3. 006_company_access_and_audit.sql
+4. 007_team_audit_triggers.sql
+5. 008_role_based_rls.sql
+6. 009_disable_profile_trigger.sql
+7. 010_user_onboarding.sql
+8. 011_rls_security_complete.sql
+9. 012_atendimento_complete.sql
+10. 013_whatsapp_cloud_official.sql
+11. 014_advanced_funnel.sql
 
 Após cada arquivo, o Supabase deve retornar sucesso.
 
 ## Build local
-Rodar no Codespaces:
+Rodar no Codespaces: git pull origin main, npm run build e git status.
 
-```bash
-git pull origin main
-npm run build
-git status
-```
+## Testes
 
-Resultado esperado: árvore limpa, sem arquivos pendentes.
-
-## Testes funcionais
-
-### Login e sessão
+### Usuários
 - Login com Admin Empresa ativo.
-- Login bloqueado para usuário inativo.
-- Login bloqueado se empresa ou plano estiver bloqueado.
-
-### Empresas e planos
-- Criar empresa na Área ADM Clack.
-- Alterar plano Inicial, Growth e Pro.
-- Alterar limite de usuários.
-- Bloquear e liberar empresa.
-- Selecionar empresa ativa.
-
-### Equipe e acessos
-- Criar usuário real.
-- Editar nome, perfil e status.
-- Inativar e reativar usuário.
-- Enviar acesso e copiar mensagem de onboarding.
-- Ver contagem por perfil.
+- Login bloqueado para usuário inativo ou removido.
+- Criar, editar, inativar, reativar e excluir acesso.
 - Validar limite do plano.
 
-### CRM operacional
-- Dashboard carrega indicadores.
-- Leads criam, editam e excluem.
-- Kanban edita valor e etapa.
-- Tarefas criam, editam e concluem.
-- Mensagens rápidas criam, editam, inativam e excluem.
-- Atendimento cria conversa teste e registra resposta.
-- Relatórios carregam.
+### Atendimento
+- Criar conversa teste.
+- Filtrar por status, prioridade e responsável.
+- Assumir, transferir, resolver e arquivar.
+- Enviar resposta e validar histórico.
 
-### WhatsApp Cloud API
-- Conta WhatsApp cria, edita e exclui.
-- Webhook URL aparece.
-- Token de verificação aparece.
+### WhatsApp
+- Conferir conta cadastrada.
+- Conferir URL do webhook.
+- Receber mensagem real via webhook.
+- Conferir status enviado, entregue, lido ou falha.
+- Enviar texto pelo CRM.
+- Enviar template quando a Meta estiver ativa.
 
-## Vercel
-Confirmar variáveis públicas e variáveis server-side em Production antes do redeploy.
+### Funil avançado
+- Criar etapa nova em Configurações.
+- Editar nome, ordem e probabilidade.
+- Arquivar etapa.
+- Abrir Kanban e conferir etapa nova.
+- Editar oportunidade com valor, previsão e probabilidade.
+- Mover oportunidade entre etapas.
 
 ## Redeploy
-Na Vercel:
-
-1. Abrir projeto `clack-crm-conversacional`.
-2. Ir em Deployments.
-3. Selecionar o último deploy.
-4. Clicar em Redeploy.
-5. Testar o domínio principal.
+Somente depois dos testes locais passarem: abrir Vercel, ir em Deployments, selecionar último deploy e clicar em Redeploy.
