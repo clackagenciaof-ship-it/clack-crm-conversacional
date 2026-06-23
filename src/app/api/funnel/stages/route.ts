@@ -53,7 +53,8 @@ export async function GET(request: Request) {
   }
 
   const stages = (data || []).filter((stage: any) => stage.active !== false && stage.status !== 'archived');
-  return Response.json({ ok: true, stages });
+  const archivedStages = (data || []).filter((stage: any) => stage.active === false || stage.status === 'archived');
+  return Response.json({ ok: true, stages, archivedStages });
 }
 
 export async function POST(request: Request) {
