@@ -1,5 +1,6 @@
 "use client";
 
+import { AIAgentWillPanel } from './AIAgentWillPanel';
 import { AuditPanel } from './AuditPanel';
 import { AutomationPanel } from './AutomationPanel';
 import { CampaignPanel } from './CampaignPanel';
@@ -7,6 +8,7 @@ import { CompanyAdminPanel } from './CompanyAdminPanel';
 import { FlowBuilderPanel } from './FlowBuilderPanel';
 import { FunnelAdvancedPanel } from './FunnelAdvancedPanel';
 import { SettingsPage as BaseSettingsPage } from './SettingsPage';
+import { WhiteLabelPanel } from './WhiteLabelPanel';
 import type { UserRole } from '@/types/crm';
 
 type SettingsPageProps = {
@@ -18,6 +20,12 @@ type SettingsPageProps = {
 export function SettingsPage(props: SettingsPageProps) {
   return (
     <>
+      <div style={{ marginBottom: 16 }}>
+        <WhiteLabelPanel />
+      </div>
+      <div style={{ marginBottom: 16 }}>
+        <AIAgentWillPanel />
+      </div>
       <div className="grid two-col" style={{ marginBottom: 16 }}>
         <CompanyAdminPanel />
         <AuditPanel />
