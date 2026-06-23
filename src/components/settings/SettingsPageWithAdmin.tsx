@@ -1,5 +1,6 @@
 "use client";
 
+import { AuditPanel } from './AuditPanel';
 import { CompanyAdminPanel } from './CompanyAdminPanel';
 import { SettingsPage as BaseSettingsPage } from './SettingsPage';
 import type { UserRole } from '@/types/crm';
@@ -15,6 +16,7 @@ export function SettingsPage(props: SettingsPageProps) {
     <>
       <div className="grid two-col" style={{ marginBottom: 16 }}>
         <CompanyAdminPanel />
+        <AuditPanel />
       </div>
       <BaseSettingsPage {...props} />
     </>
