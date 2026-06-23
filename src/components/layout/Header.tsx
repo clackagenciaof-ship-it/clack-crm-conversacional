@@ -8,6 +8,7 @@ type HeaderProps = {
   dataNotice?: string;
   loadingRealData?: boolean;
   userRole?: UserRole;
+  setUserRole?: (role: UserRole) => void;
   onLogout?: () => void;
 };
 
@@ -22,7 +23,7 @@ const titles: Record<Screen, string> = {
   settings: 'Configurações'
 };
 
-export function Header({ screen, setScreen, dataNotice, loadingRealData, userRole = 'Admin Empresa', onLogout }: HeaderProps) {
+export function Header({ screen, setScreen, dataNotice, loadingRealData, userRole = 'Admin Empresa', setUserRole, onLogout }: HeaderProps) {
   const dataModeLabel = loadingRealData ? 'Carregando dados...' : dataNotice || getCrmDataModeLabel();
   const allowedScreens = roleScreens[userRole] || roleScreens['Admin Empresa'];
   const canOpenLeads = allowedScreens.includes('leads');
@@ -36,6 +37,7 @@ export function Header({ screen, setScreen, dataNotice, loadingRealData, userRol
         <span className="role-pill">{roleLabels[userRole] || roleLabels['Admin Empresa']}</span>
       </div>
       <div className="top-actions">
+        {userRole !== 'Admin Empresa' && setUserRole && <button className="btn" onClick={() => setUserRole('Admin Empresa')}>Voltar Admin</button>}
         {canOpenLeads && <button className="btn" onClick={() => setScreen('leads')}>Novo Lead</button>}
         {canOpenKanban && <button className="btn primary" onClick={() => setScreen('kanban')}>Abrir Funil</button>}
         {onLogout && <button className="btn" onClick={onLogout}>Sair</button>}
