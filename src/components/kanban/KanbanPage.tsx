@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Badge } from '@/components/ui/Badge';
 import { CRM_USERS, LEAD_SOURCES, PIPELINE_STAGES } from '@/lib/crm/constants';
 import { opportunityStatusBadgeStyle, taskStatusBadgeStyle, tempBadgeStyle } from '@/lib/crm/badge-styles';
 import { formatCurrencyBRL as brl } from '@/lib/crm/formatters';
+import { loadCompanyPipelineStages } from '@/lib/crm/pipeline-admin';
 import type { Lead, LeadTemperature, Opportunity, OpportunityStatus, PipelineStage } from '@/types/crm';
 
 type OpportunityEditForm = {
@@ -15,6 +16,8 @@ type OpportunityEditForm = {
   nextTask: string;
   status: OpportunityStatus;
   notes: string;
+  probability?: number;
+  expectedCloseDate?: string;
 };
 
 type KanbanPageProps = {
@@ -41,7 +44,9 @@ function createEditForm(deal: Opportunity): OpportunityEditForm {
     temperature: deal.temperature,
     nextTask: deal.nextTask,
     status: deal.status,
-    notes: deal.notes
+    notes: deal.notes,
+    probability: deal.probability || 20,
+    expectedCloseDate: deal.expectedCloseDate || ''
   };
 }
 
@@ -52,9 +57,34 @@ function parseCurrencyValue(value: string) {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
+function stageProbability(stageName: string, stages: Array<{ name: string; probability?: number | null }>) {
+  return stages.find((stage) => stage.name === stageName)?.probability ?? 20;
+}
+
 export function KanbanPage({ leads, deals, moveDeal, updateDeal, markWon, markLost, openConversation, setSelectedLead }: KanbanPageProps) {
   const [editingDealId, setEditingDealId] = useState<number | null>(null);
   const [editForm, setEditForm] = useState<OpportunityEditForm | null>(null);
+  const [dynamicStages, setDynamicStages] = useState<Array<{ name: string; probability?: number | null }>>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadStages() {
+      try {
+        const rows = await loadCompanyPipelineStages();
+        if (!cancelled && rows.length) setDynamicStages(rows.map((row) => ({ name: row.name, probability: row.probability })));
+      } catch {
+        if (!cancelled) setDynamicStages([]);
+      }
+    }
+    loadStages();
+    return () => { cancelled = true; };
+  }, []);
+
+  const stages = useMemo(() => {
+    const base = dynamicStages.length ? dynamicStages.map((stage) => stage.name) : PIPELINE_STAGES;
+    const dealStages = deals.map((deal) => deal.stage).filter(Boolean);
+    return Array.from(new Set([...base, ...dealStages]));
+  }, [dynamicStages, deals]);
 
   function leadById(id: number) {
     return leads.find((lead) => lead.id === id);
@@ -70,7 +100,6 @@ export function KanbanPage({ leads, deals, moveDeal, updateDeal, markWon, markLo
       alert('A oportunidade precisa de título.');
       return;
     }
-
     await updateDeal(deal, editForm);
     setEditingDealId(null);
     setEditForm(null);
@@ -78,91 +107,52 @@ export function KanbanPage({ leads, deals, moveDeal, updateDeal, markWon, markLo
 
   return (
     <div className="kanban">
-      {PIPELINE_STAGES.map((stage) => (
+      {stages.map((stage) => (
         <div className="column" key={stage}>
           <div className="column-head">
             <span>{stage}</span>
             <b>{deals.filter((deal) => deal.stage === stage).length}</b>
           </div>
 
-          {deals
-            .filter((deal) => deal.stage === stage)
-            .map((deal) => {
-              const lead = leadById(deal.leadId);
-              if (!lead) return null;
+          {deals.filter((deal) => deal.stage === stage).map((deal) => {
+            const lead = leadById(deal.leadId);
+            if (!lead) return null;
+            const probability = deal.probability ?? stageProbability(stage, dynamicStages);
 
-              return (
-                <div className="deal-card" key={deal.id}>
-                  {editingDealId === deal.id && editForm ? (
-                    <div className="form-grid">
-                      <strong>{lead.name}</strong>
-                      <input className="input full" value={editForm.title} onChange={(event) => setEditForm({ ...editForm, title: event.target.value })} />
-                      <label className="currency-field">
-                        <span>R$</span>
-                        <input
-                          className="input"
-                          inputMode="decimal"
-                          placeholder="0,00"
-                          value={editForm.value === 0 ? '' : String(editForm.value).replace('.', ',')}
-                          onChange={(event) => setEditForm({ ...editForm, value: parseCurrencyValue(event.target.value) })}
-                        />
-                      </label>
-                      <select className="select" value={editForm.stage} onChange={(event) => setEditForm({ ...editForm, stage: event.target.value as PipelineStage, status: event.target.value === 'Fechado' ? 'Ganha' : event.target.value === 'Perdido' ? 'Perdida' : 'Aberta' })}>
-                        {PIPELINE_STAGES.map((pipelineStage) => <option key={pipelineStage}>{pipelineStage}</option>)}
-                      </select>
-                      <select className="select" value={editForm.status} onChange={(event) => setEditForm({ ...editForm, status: event.target.value as OpportunityStatus })}>
-                        {opportunityStatuses.map((status) => <option key={status}>{status}</option>)}
-                      </select>
-                      <select className="select" value={editForm.owner} onChange={(event) => setEditForm({ ...editForm, owner: event.target.value })}>
-                        {users.map((user) => <option key={user}>{user}</option>)}
-                      </select>
-                      <select className="select" value={editForm.source} onChange={(event) => setEditForm({ ...editForm, source: event.target.value })}>
-                        {LEAD_SOURCES.map((source) => <option key={source}>{source}</option>)}
-                      </select>
-                      <select className="select" value={editForm.temperature} onChange={(event) => setEditForm({ ...editForm, temperature: event.target.value as LeadTemperature })}>
-                        <option>Quente</option>
-                        <option>Morno</option>
-                        <option>Frio</option>
-                      </select>
-                      <input className="input full" placeholder="Próxima ação" value={editForm.nextTask} onChange={(event) => setEditForm({ ...editForm, nextTask: event.target.value })} />
-                      <textarea className="input full" placeholder="Observações" value={editForm.notes} onChange={(event) => setEditForm({ ...editForm, notes: event.target.value })} style={{ minHeight: 80 }} />
-                      <button className="btn small primary" onClick={() => saveDeal(deal)}>Salvar</button>
-                      <button className="btn small" onClick={() => { setEditingDealId(null); setEditForm(null); }}>Cancelar</button>
-                    </div>
-                  ) : (
-                    <>
-                      <strong>{lead.name}</strong>
-                      <div className="deal-meta">
-                        <span>{deal.title}</span>
-                        <b>{brl(deal.value)}</b>
-                      </div>
-                      <div>
-                        <Badge style={tempBadgeStyle(deal.temperature)}>{deal.temperature}</Badge>{' '}
-                        <Badge style={opportunityStatusBadgeStyle(deal.status)}>{deal.status}</Badge>{' '}
-                        {deal.late && <Badge style={taskStatusBadgeStyle('Vencida')}>Atrasado</Badge>}
-                      </div>
-                      <div className="deal-meta">
-                        <span>{deal.owner}</span>
-                        <span>{deal.source}</span>
-                      </div>
-                      <small className="notice">Próxima ação: {deal.nextTask}</small>
-                      <select className="select" value={deal.stage} onChange={(event) => moveDeal(deal.id, event.target.value as PipelineStage)}>
-                        {PIPELINE_STAGES.map((pipelineStage) => (
-                          <option key={pipelineStage}>{pipelineStage}</option>
-                        ))}
-                      </select>
-                      <div className="deal-actions">
-                        <button className="btn small" onClick={() => setSelectedLead(lead)}>Abrir</button>
-                        <button className="btn small" onClick={() => startEdit(deal)}>Editar</button>
-                        <button className="btn small" onClick={() => openConversation(lead)}>Conversa</button>
-                        <button className="btn small success" onClick={() => markWon(deal.id)}>Ganha</button>
-                        <button className="btn small danger" onClick={() => markLost(deal.id)}>Perdida</button>
-                      </div>
-                    </>
-                  )}
-                </div>
-              );
-            })}
+            return (
+              <div className="deal-card" key={deal.id}>
+                {editingDealId === deal.id && editForm ? (
+                  <div className="form-grid">
+                    <strong>{lead.name}</strong>
+                    <input className="input full" value={editForm.title} onChange={(event) => setEditForm({ ...editForm, title: event.target.value })} />
+                    <label className="currency-field"><span>R$</span><input className="input" inputMode="decimal" placeholder="0,00" value={editForm.value === 0 ? '' : String(editForm.value).replace('.', ',')} onChange={(event) => setEditForm({ ...editForm, value: parseCurrencyValue(event.target.value) })} /></label>
+                    <select className="select" value={editForm.stage} onChange={(event) => setEditForm({ ...editForm, stage: event.target.value, probability: stageProbability(event.target.value, dynamicStages), status: event.target.value === 'Fechado' ? 'Ganha' : event.target.value === 'Perdido' ? 'Perdida' : 'Aberta' })}>{stages.map((pipelineStage) => <option key={pipelineStage}>{pipelineStage}</option>)}</select>
+                    <select className="select" value={editForm.status} onChange={(event) => setEditForm({ ...editForm, status: event.target.value as OpportunityStatus })}>{opportunityStatuses.map((status) => <option key={status}>{status}</option>)}</select>
+                    <input className="input" type="number" placeholder="Probabilidade %" value={editForm.probability || 0} onChange={(event) => setEditForm({ ...editForm, probability: Number(event.target.value || 0) })} />
+                    <input className="input" type="date" value={editForm.expectedCloseDate || ''} onChange={(event) => setEditForm({ ...editForm, expectedCloseDate: event.target.value })} />
+                    <select className="select" value={editForm.owner} onChange={(event) => setEditForm({ ...editForm, owner: event.target.value })}>{users.map((user) => <option key={user}>{user}</option>)}</select>
+                    <select className="select" value={editForm.source} onChange={(event) => setEditForm({ ...editForm, source: event.target.value })}>{LEAD_SOURCES.map((source) => <option key={source}>{source}</option>)}</select>
+                    <select className="select" value={editForm.temperature} onChange={(event) => setEditForm({ ...editForm, temperature: event.target.value as LeadTemperature })}><option>Quente</option><option>Morno</option><option>Frio</option></select>
+                    <input className="input full" placeholder="Próxima ação" value={editForm.nextTask} onChange={(event) => setEditForm({ ...editForm, nextTask: event.target.value })} />
+                    <textarea className="input full" placeholder="Observações" value={editForm.notes} onChange={(event) => setEditForm({ ...editForm, notes: event.target.value })} style={{ minHeight: 80 }} />
+                    <button className="btn small primary" onClick={() => saveDeal(deal)}>Salvar</button>
+                    <button className="btn small" onClick={() => { setEditingDealId(null); setEditForm(null); }}>Cancelar</button>
+                  </div>
+                ) : (
+                  <>
+                    <strong>{lead.name}</strong>
+                    <div className="deal-meta"><span>{deal.title}</span><b>{brl(deal.value)}</b></div>
+                    <div><Badge style={tempBadgeStyle(deal.temperature)}>{deal.temperature}</Badge>{' '}<Badge style={opportunityStatusBadgeStyle(deal.status)}>{deal.status}</Badge>{' '}<Badge style={opportunityStatusBadgeStyle('Aberta')}>{probability}%</Badge>{' '}{deal.late && <Badge style={taskStatusBadgeStyle('Vencida')}>Atrasado</Badge>}</div>
+                    <div className="deal-meta"><span>{deal.owner}</span><span>{deal.source}</span></div>
+                    <small className="notice">Próxima ação: {deal.nextTask}</small>
+                    {deal.expectedCloseDate && <small className="notice">Previsão: {deal.expectedCloseDate}</small>}
+                    <select className="select" value={deal.stage} onChange={(event) => moveDeal(deal.id, event.target.value)}>{stages.map((pipelineStage) => <option key={pipelineStage}>{pipelineStage}</option>)}</select>
+                    <div className="deal-actions"><button className="btn small" onClick={() => setSelectedLead(lead)}>Abrir</button><button className="btn small" onClick={() => startEdit(deal)}>Editar</button><button className="btn small" onClick={() => openConversation(lead)}>Conversa</button><button className="btn small success" onClick={() => markWon(deal.id)}>Ganha</button><button className="btn small danger" onClick={() => markLost(deal.id)}>Perdida</button></div>
+                  </>
+                )}
+              </div>
+            );
+          })}
         </div>
       ))}
     </div>
