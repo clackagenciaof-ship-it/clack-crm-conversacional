@@ -9,19 +9,19 @@ export const roleLabels: Record<UserRole, string> = {
 };
 
 export const roleDescriptions: Record<UserRole, string> = {
-  'Admin Empresa': 'Acesso total ao CRM, configurações, funil, atendimento, relatórios e módulos estratégicos.',
-  Gestor: 'Acompanha equipe, funil, indicadores, atendimento, tarefas, mensagens e relatórios comerciais.',
+  'Admin Empresa': 'Acesso total ao CRM, configurações, funil, atendimento, relatórios, financeiro e módulos estratégicos.',
+  Gestor: 'Acompanha equipe, funil, indicadores, atendimento, tarefas, mensagens, financeiro e relatórios comerciais.',
   Vendedor: 'Trabalha leads, oportunidades, tarefas e mensagens rápidas do processo comercial.',
   Atendente: 'Foca em atendimento, cadastro, follow-up e mensagens rápidas.',
-  Financeiro: 'Acompanha indicadores, relatórios, vendas fechadas e valores do funil.'
+  Financeiro: 'Acompanha indicadores, relatórios, vendas fechadas, recebimentos e valores do funil.'
 };
 
 export const roleScreens: Record<UserRole, Screen[]> = {
-  'Admin Empresa': ['dashboard', 'leads', 'kanban', 'tasks', 'messages', 'inbox', 'reports', 'settings'],
-  Gestor: ['dashboard', 'leads', 'kanban', 'tasks', 'messages', 'inbox', 'reports', 'settings'],
+  'Admin Empresa': ['dashboard', 'leads', 'kanban', 'tasks', 'messages', 'inbox', 'reports', 'finance', 'settings'],
+  Gestor: ['dashboard', 'leads', 'kanban', 'tasks', 'messages', 'inbox', 'reports', 'finance', 'settings'],
   Vendedor: ['dashboard', 'leads', 'kanban', 'tasks', 'messages'],
   Atendente: ['leads', 'tasks', 'messages', 'inbox'],
-  Financeiro: ['dashboard', 'kanban', 'reports']
+  Financeiro: ['dashboard', 'kanban', 'reports', 'finance']
 };
 
 export function normalizeRole(role?: string | null): UserRole {
