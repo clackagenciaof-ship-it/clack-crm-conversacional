@@ -21,6 +21,8 @@ type Mensagem = {
   created_at: string;
 };
 
+const statusOptions = ['Aberta', 'Em atendimento', 'Resolvida', 'Arquivada'];
+
 function formatDate(value?: string | null) {
   if (!value) return 'Sem data';
   const date = new Date(value);
@@ -45,6 +47,7 @@ export function AtendimentoPage() {
   const [testPhone, setTestPhone] = useState('5598999999999');
   const [testMessage, setTestMessage] = useState('Olá, quero saber mais sobre a proposta.');
   const [creatingTest, setCreatingTest] = useState(false);
+  const [changingStatus, setChangingStatus] = useState(false);
 
   async function loadInbox() {
     setLoading(true);
@@ -77,6 +80,39 @@ export function AtendimentoPage() {
       console.error('Falha ao carregar mensagens da conversa.', error);
     } finally {
       setLoadingMessages(false);
+    }
+  }
+
+  async function changeConversationStatus(nextStatus: string) {
+    if (!companyId || !selectedConversa) return;
+
+    setChangingStatus(true);
+    try {
+      const response = await fetch('/api/atendimento/status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          companyId,
+          conversationId: selectedConversa.id,
+          status: nextStatus
+        })
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || !result.ok) {
+        alert(result.error || 'Não foi possível alterar o status da conversa.');
+        return;
+      }
+
+      const updated = result.conversation as Conversa;
+      setSelectedConversa(updated);
+      setConversas((current) => current.map((conversa) => conversa.id === updated.id ? updated : conversa));
+    } catch (error) {
+      console.error('Falha ao alterar status da conversa.', error);
+      alert('Não foi possível alterar o status da conversa.');
+    } finally {
+      setChangingStatus(false);
     }
   }
 
@@ -224,9 +260,20 @@ export function AtendimentoPage() {
           <h2>{selectedConversa?.customer_name || 'Histórico da conversa'}</h2>
           <span>{selectedConversa?.customer_phone || 'Selecione uma conversa'}</span>
         </div>
-        <button className="btn small" disabled={!selectedConversa} onClick={() => selectedConversa && openConversa(selectedConversa)}>
-          {loadingMessages ? 'Carregando...' : 'Atualizar conversa'}
-        </button>
+        <div className="form-grid" style={{ marginBottom: 12 }}>
+          <select
+            className="select"
+            disabled={!selectedConversa || changingStatus}
+            value={selectedConversa?.status || 'Aberta'}
+            onChange={(event) => changeConversationStatus(event.target.value)}
+          >
+            {statusOptions.map((status) => <option key={status}>{status}</option>)}
+          </select>
+
+          <button className="btn small" disabled={!selectedConversa} onClick={() => selectedConversa && openConversa(selectedConversa)}>
+            {loadingMessages ? 'Carregando...' : 'Atualizar conversa'}
+          </button>
+        </div>
         <div className="timeline">
           {mensagens.map((mensagem) => (
             <div className="timeline-item" key={mensagem.id}>
