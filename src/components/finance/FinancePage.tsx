@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { createFinanceInvoice, generateInvoicesFromWonDeals, loadFinanceData, updateFinanceInvoice, type FinanceEntry, type FinanceForm, type FinanceInvoice, type WonDeal } from '@/lib/crm/finance-admin';
 import { normalizeRole } from '@/lib/crm/permissions';
 import { getCurrentProfile } from '@/lib/supabase/crm-repository';
@@ -38,7 +38,7 @@ export function FinancePage() {
   if (!allowed) return null;
 
   const today = new Date().toISOString().slice(0, 10);
-  const normalizedInvoices = useMemo(() => invoices.map((invoice) => ({ ...invoice, status: invoice.status === 'Pendente' && invoice.due_at && invoice.due_at < today ? 'Vencido' : invoice.status })), [invoices, today]);
+  const normalizedInvoices = invoices.map((invoice) => ({ ...invoice, status: invoice.status === 'Pendente' && invoice.due_at && invoice.due_at < today ? 'Vencido' : invoice.status }));
   const filteredInvoices = normalizedInvoices.filter((invoice) => statusFilter === 'Todos' || invoice.status === statusFilter);
   const metrics = { sold: invoices.reduce((sum, item) => sum + Number(item.amount || 0), 0), received: invoices.filter((item) => item.status === 'Pago').reduce((sum, item) => sum + Number(item.amount || 0), 0), open: normalizedInvoices.filter((item) => item.status === 'Pendente').reduce((sum, item) => sum + Number(item.amount || 0), 0), overdue: normalizedInvoices.filter((item) => item.status === 'Vencido').reduce((sum, item) => sum + Number(item.amount || 0), 0), conversion: invoices.length ? Math.round((invoices.filter((item) => item.status === 'Pago').length / invoices.length) * 100) : 0 };
 

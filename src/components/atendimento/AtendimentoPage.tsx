@@ -69,10 +69,21 @@ export function AtendimentoPage() {
       if (!profile?.company_id) return;
       setCompanyId(profile.company_id);
       setCurrentProfile(profile);
-      const [conversationRows, teamRows, messageRows, flowData] = await Promise.all([listWhatsAppConversations(profile.company_id), listCompanyProfiles(profile.company_id), listQuickMessages(profile.company_id), loadChatbotFlows().catch(() => ({ flows: [], steps: [] }))]);
-      setTeam(teamRows.filter((member) => member.status === 'active'));
-      setQuickMessages((messageRows || []).map(mapQuickMessage).filter((message) => message.active));
-      setFlows((flowData.flows || []).filter((flow) => flow.active));
+      const inboxData = await Promise.all([
+        listWhatsAppConversations(profile.company_id),
+        listCompanyProfiles(profile.company_id),
+        listQuickMessages(profile.company_id),
+        loadChatbotFlows().catch(() => ({ flows: [], steps: [] }))
+      ]);
+
+      const conversationRows = inboxData[0] as Conversa[];
+      const teamRows = inboxData[1] as ProfileRow[];
+      const messageRows = inboxData[2] as any[];
+      const flowData = inboxData[3] as { flows: ChatbotFlow[]; steps: ChatbotFlowStep[] };
+
+      setTeam((teamRows || []).filter((member: ProfileRow) => member.status === 'active'));
+      setQuickMessages((messageRows || []).map(mapQuickMessage).filter((message: QuickMessage) => message.active));
+      setFlows((flowData.flows || []).filter((flow: ChatbotFlow) => flow.active));
       setFlowSteps(flowData.steps || []);
       const nextConversas = conversationRows as Conversa[];
       setConversas(nextConversas);
