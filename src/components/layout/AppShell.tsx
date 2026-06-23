@@ -53,7 +53,15 @@ export function AppShell({ screen, setScreen, userRole = 'Admin Empresa', childr
 
   return (
     <div className="app">
-      <aside className="sidebar" style={{ background: `linear-gradient(180deg, ${branding.sidebar_color || branding.primary_color}, ${branding.primary_color || '#005954'})` }}>
+      <aside
+        className="sidebar"
+        style={{
+          background: `linear-gradient(180deg, ${branding.sidebar_color || branding.primary_color}, ${branding.primary_color || '#005954'})`,
+          overflowY: 'auto',
+          overflowX: 'hidden',
+          paddingBottom: 42
+        }}
+      >
         <div className="brand">
           {branding.logo_url ? <img src={branding.logo_url} alt={branding.brand_name} className="brand-logo" /> : <div className="logo-mark">{initial}</div>}
           <div>
@@ -70,7 +78,7 @@ export function AppShell({ screen, setScreen, userRole = 'Admin Empresa', childr
           ))}
         </div>
 
-        <div className="sidebar-card">
+        <div className="sidebar-card" style={{ marginBottom: 28 }}>
           <strong>{userRole}</strong>
           <p>Menu ajustado automaticamente conforme o perfil de acesso ativo.</p>
         </div>
