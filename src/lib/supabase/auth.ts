@@ -6,6 +6,17 @@ export type LoginResult = {
   message: string;
 };
 
+async function isProfileActive(supabase: any, userId: string) {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('status')
+    .eq('id', userId)
+    .maybeSingle();
+
+  if (error) return false;
+  return data?.status === 'active';
+}
+
 export async function hasActiveSupabaseSession() {
   if (!hasSupabaseConfig()) return false;
 
@@ -13,9 +24,15 @@ export async function hasActiveSupabaseSession() {
   if (!supabase) return false;
 
   const { data, error } = await supabase.auth.getSession();
-  if (error) return false;
+  if (error || !data.session) return false;
 
-  return Boolean(data.session);
+  const active = await isProfileActive(supabase as any, data.session.user.id);
+  if (!active) {
+    await supabase.auth.signOut();
+    return false;
+  }
+
+  return true;
 }
 
 export async function signInWithSupabaseOrDemo(email: string, password: string): Promise<LoginResult> {
@@ -36,13 +53,23 @@ export async function signInWithSupabaseOrDemo(email: string, password: string):
     };
   }
 
-  const { error } = await supabase.auth.signInWithPassword({ email, password });
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
-  if (error) {
+  if (error || !data.user) {
     return {
       ok: false,
       mode: 'supabase',
-      message: error.message || 'Não foi possível entrar com esse e-mail e senha.'
+      message: error?.message || 'Não foi possível entrar com esse e-mail e senha.'
+    };
+  }
+
+  const active = await isProfileActive(supabase as any, data.user.id);
+  if (!active) {
+    await supabase.auth.signOut();
+    return {
+      ok: false,
+      mode: 'supabase',
+      message: 'Acesso inativo. Procure o Admin Empresa.'
     };
   }
 
