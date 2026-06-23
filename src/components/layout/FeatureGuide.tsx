@@ -1,4 +1,5 @@
 import type { Screen, UserRole } from '@/types/crm';
+import styles from './FeatureGuide.module.css';
 
 type GuideContent = {
   title: string;
@@ -163,18 +164,18 @@ export function FeatureGuide({ screen, userRole }: { screen: Screen; userRole: U
   const roleTip = guide.roleTip[userRole] || roleFallback[userRole];
 
   return (
-    <details className="feature-guide" open>
+    <details className={styles.guide} open>
       <summary>
         <span>{guide.title}</span>
         <small>Guia rápido para usar esta área</small>
       </summary>
-      <div className="feature-guide-grid">
-        <div className="guide-item"><b>Para que serve</b><p>{guide.intro}</p></div>
-        <div className="guide-item"><b>O que faz</b><p>{guide.what}</p></div>
-        <div className="guide-item"><b>Como usar</b><p>{guide.how}</p></div>
-        <div className="guide-item"><b>Leitura executiva</b><p>{guide.decision}</p></div>
+      <div className={styles.grid}>
+        <div className={styles.item}><b>Para que serve</b><p>{guide.intro}</p></div>
+        <div className={styles.item}><b>O que faz</b><p>{guide.what}</p></div>
+        <div className={styles.item}><b>Como usar</b><p>{guide.how}</p></div>
+        <div className={styles.item}><b>Leitura executiva</b><p>{guide.decision}</p></div>
       </div>
-      <div className="guide-role-note"><b>{userRole}:</b> {roleTip}</div>
+      <div className={styles.roleNote}><b>{userRole}:</b> {roleTip}</div>
     </details>
   );
 }
