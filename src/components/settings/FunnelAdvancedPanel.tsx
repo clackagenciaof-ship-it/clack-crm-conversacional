@@ -11,7 +11,18 @@ type StageForm = {
   color: string;
 };
 
-const emptyForm: StageForm = { name: '', position: 1, probability: 20, color: '' };
+const emptyForm: StageForm = { name: '', position: 1, probability: 20, color: '#338b85' };
+
+const colorOptions = [
+  { label: 'Verde Clack', value: '#338b85' },
+  { label: 'Turquesa', value: '#5dc1b9' },
+  { label: 'Azul', value: '#2563eb' },
+  { label: 'Roxo', value: '#7c3aed' },
+  { label: 'Laranja', value: '#f97316' },
+  { label: 'Vermelho', value: '#ef4444' },
+  { label: 'Dourado', value: '#f59e0b' },
+  { label: 'Cinza premium', value: '#64748b' }
+];
 
 export function FunnelAdvancedPanel() {
   const [stages, setStages] = useState<PipelineStageRow[]>([]);
@@ -33,7 +44,7 @@ export function FunnelAdvancedPanel() {
   useEffect(() => { loadStages(); }, []);
 
   function startEdit(stage: PipelineStageRow) {
-    setForm({ id: stage.id, name: stage.name, position: stage.position, probability: Number(stage.probability || 20), color: stage.color || '' });
+    setForm({ id: stage.id, name: stage.name, position: stage.position, probability: Number(stage.probability || 20), color: stage.color || '#338b85' });
   }
 
   async function submitStage() {
@@ -50,7 +61,8 @@ export function FunnelAdvancedPanel() {
       alert('Etapa do funil salva.');
     } catch (error) {
       console.error('Falha ao salvar etapa.', error);
-      alert('Não foi possível salvar a etapa do funil.');
+      const message = error instanceof Error ? error.message : 'Não foi possível salvar a etapa do funil.';
+      alert(message);
     } finally {
       setSaving(false);
     }
@@ -64,7 +76,8 @@ export function FunnelAdvancedPanel() {
       alert('Etapa arquivada.');
     } catch (error) {
       console.error('Falha ao arquivar etapa.', error);
-      alert('Não foi possível arquivar a etapa.');
+      const message = error instanceof Error ? error.message : 'Não foi possível arquivar a etapa.';
+      alert(message);
     }
   }
 
@@ -82,14 +95,30 @@ export function FunnelAdvancedPanel() {
         <input className="input" placeholder="Nome da etapa" value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} />
         <input className="input" type="number" placeholder="Ordem" value={form.position} onChange={(event) => setForm({ ...form, position: Number(event.target.value || 1) })} />
         <input className="input" type="number" placeholder="Probabilidade %" value={form.probability} onChange={(event) => setForm({ ...form, probability: Number(event.target.value || 0) })} />
-        <input className="input" placeholder="Cor opcional, ex: #338b85" value={form.color} onChange={(event) => setForm({ ...form, color: event.target.value })} />
+        <select className="select" value={form.color} onChange={(event) => setForm({ ...form, color: event.target.value })}>
+          {colorOptions.map((color) => <option key={color.value} value={color.value}>{color.label}</option>)}
+        </select>
+        <div className="full" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          {colorOptions.map((color) => (
+            <button
+              key={color.value}
+              type="button"
+              className={form.color === color.value ? 'btn small primary' : 'btn small'}
+              onClick={() => setForm({ ...form, color: color.value })}
+              style={{ borderColor: color.value }}
+            >
+              <span style={{ display: 'inline-block', width: 12, height: 12, borderRadius: 999, background: color.value, marginRight: 6 }} />
+              {color.label}
+            </button>
+          ))}
+        </div>
         <button className="btn primary" disabled={saving} onClick={submitStage}>{saving ? 'Salvando...' : form.id ? 'Salvar etapa' : 'Criar etapa'}</button>
         <button className="btn" onClick={() => setForm(emptyForm)}>Limpar</button>
       </div>
 
       <div className="timeline" style={{ marginTop: 16 }}>
         {stages.map((stage) => (
-          <div className="timeline-item" key={stage.id}>
+          <div className="timeline-item" key={stage.id} style={{ borderLeftColor: stage.color || '#338b85' }}>
             <b>{stage.position}. {stage.name}</b>
             <p className="notice">Probabilidade: {stage.probability || 0}% • Cor: {stage.color || 'padrão'}</p>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
