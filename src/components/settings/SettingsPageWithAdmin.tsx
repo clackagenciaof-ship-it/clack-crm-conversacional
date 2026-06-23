@@ -2,6 +2,7 @@
 
 import { AuditPanel } from './AuditPanel';
 import { AutomationPanel } from './AutomationPanel';
+import { CampaignPanel } from './CampaignPanel';
 import { CompanyAdminPanel } from './CompanyAdminPanel';
 import { FlowBuilderPanel } from './FlowBuilderPanel';
 import { FunnelAdvancedPanel } from './FunnelAdvancedPanel';
@@ -26,6 +27,9 @@ export function SettingsPage(props: SettingsPageProps) {
       </div>
       <div style={{ marginBottom: 16 }}>
         <FlowBuilderPanel />
+      </div>
+      <div style={{ marginBottom: 16 }}>
+        <CampaignPanel />
       </div>
       <div style={{ marginBottom: 16 }}>
         <FunnelAdvancedPanel />
