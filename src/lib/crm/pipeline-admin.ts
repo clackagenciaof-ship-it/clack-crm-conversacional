@@ -12,6 +12,11 @@ export type PipelineStageRow = {
   status?: string | null;
 };
 
+export type PipelineStagesResult = {
+  stages: PipelineStageRow[];
+  archivedStages: PipelineStageRow[];
+};
+
 async function getSessionHeader() {
   const supabase = createSupabaseBrowserClient() as any;
   if (!supabase) throw new Error('Supabase não configurado.');
@@ -22,13 +27,21 @@ async function getSessionHeader() {
   return { Authorization: `Bearer ${sessionToken}` };
 }
 
-export async function loadCompanyPipelineStages() {
+export async function loadCompanyPipelineStagesFull(): Promise<PipelineStagesResult> {
   const response = await fetch('/api/funnel/stages', {
     headers: await getSessionHeader()
   });
   const result = await response.json();
   if (!response.ok || !result.ok) throw new Error(result.error || 'Não foi possível carregar etapas do funil.');
-  return (result.stages || []) as PipelineStageRow[];
+  return {
+    stages: (result.stages || []) as PipelineStageRow[],
+    archivedStages: (result.archivedStages || []) as PipelineStageRow[]
+  };
+}
+
+export async function loadCompanyPipelineStages() {
+  const result = await loadCompanyPipelineStagesFull();
+  return result.stages;
 }
 
 export async function savePipelineStage(input: Partial<PipelineStageRow> & { name: string }) {
@@ -45,16 +58,24 @@ export async function savePipelineStage(input: Partial<PipelineStageRow> & { nam
   return result.stage as PipelineStageRow;
 }
 
-export async function archivePipelineStage(stageId: string) {
+async function updateArchivedState(stageId: string, action: 'archive' | 'restore') {
   const response = await fetch('/api/funnel/stages/archive', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       ...(await getSessionHeader())
     },
-    body: JSON.stringify({ stageId })
+    body: JSON.stringify({ stageId, action })
   });
   const result = await response.json();
-  if (!response.ok || !result.ok) throw new Error(result.error || 'Não foi possível arquivar a etapa.');
+  if (!response.ok || !result.ok) throw new Error(result.error || 'Não foi possível atualizar a etapa.');
   return result.stage as PipelineStageRow;
+}
+
+export async function archivePipelineStage(stageId: string) {
+  return updateArchivedState(stageId, 'archive');
+}
+
+export async function restorePipelineStage(stageId: string) {
+  return updateArchivedState(stageId, 'restore');
 }
