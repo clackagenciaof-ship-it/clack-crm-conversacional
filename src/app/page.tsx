@@ -6,6 +6,7 @@ import { DashboardPage } from "@/components/dashboard/DashboardPage";
 import { FinancePage } from "@/components/finance/FinancePage";
 import { KanbanPage } from "@/components/kanban/KanbanPage";
 import { AppShell } from "@/components/layout/AppShell";
+import { FeatureGuide } from "@/components/layout/FeatureGuide";
 import { Header } from "@/components/layout/Header";
 import { LeadDrawer } from "@/components/leads/LeadDrawer";
 import { LeadsPage } from "@/components/leads/LeadsPage";
@@ -40,6 +41,8 @@ export default function Home() {
           <button className="btn primary" onClick={() => crm.setScreen(getDefaultScreenForRole(crm.userRole))}>Ir para minha área</button>
         </div>
       )}
+
+      {canAccessCurrentScreen && <FeatureGuide screen={crm.screen} userRole={crm.userRole} />}
 
       {canAccessCurrentScreen && crm.screen === "dashboard" && (
         <DashboardPage leads={crm.leads} deals={crm.deals} tasks={crm.tasks} setScreen={safeSetScreen} />
