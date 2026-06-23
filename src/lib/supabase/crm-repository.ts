@@ -281,6 +281,53 @@ export async function updateWhatsAppAccount(id: string, payload: Partial<WhatsAp
   return data;
 }
 
+export async function listWhatsAppConversations(companyId: string) {
+  const supabase = getClientOrThrow();
+  const { data, error } = await supabase
+    .from('whatsapp_conversations')
+    .select('*')
+    .eq('company_id', companyId)
+    .order('last_message_at', { ascending: false, nullsFirst: false });
+
+  if (error) throw error;
+  return data as Array<{
+    id: string;
+    company_id: string;
+    contact_id: string | null;
+    customer_phone: string;
+    customer_name: string | null;
+    status: string;
+    last_message_at: string | null;
+    created_at: string;
+    updated_at: string;
+  }>;
+}
+
+export async function listWhatsAppMessages(companyId: string, conversationId: string) {
+  const supabase = getClientOrThrow();
+  const { data, error } = await supabase
+    .from('whatsapp_messages')
+    .select('*')
+    .eq('company_id', companyId)
+    .eq('conversation_id', conversationId)
+    .order('created_at', { ascending: true });
+
+  if (error) throw error;
+  return data as Array<{
+    id: string;
+    company_id: string;
+    conversation_id: string | null;
+    contact_id: string | null;
+    direction: string;
+    from_phone: string | null;
+    to_phone: string | null;
+    message_type: string;
+    body: string | null;
+    status: string;
+    created_at: string;
+  }>;
+}
+
 export async function listActivityLogs(companyId: string) {
   const supabase = getClientOrThrow();
   const { data, error } = await supabase
