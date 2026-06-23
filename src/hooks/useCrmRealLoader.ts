@@ -24,10 +24,10 @@ export function useCrmRealLoader({ setLeads, setDeals, setTasks, setMessages }: 
       const snapshot = await loadCrmSnapshotFromSupabase();
       if (!snapshot) return false;
 
-      if (snapshot.leads.length) setLeads(snapshot.leads);
-      if (snapshot.deals.length) setDeals(snapshot.deals);
-      if (snapshot.tasks.length) setTasks(snapshot.tasks);
-      if (snapshot.messages.length) setMessages(snapshot.messages);
+      setLeads(snapshot.leads);
+      setDeals(snapshot.deals);
+      setTasks(snapshot.tasks);
+      setMessages(snapshot.messages);
       setDataNotice(snapshot.notice);
       return true;
     } catch {
