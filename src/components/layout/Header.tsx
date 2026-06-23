@@ -15,6 +15,7 @@ const titles: Record<Screen, string> = {
   kanban: 'Kanban comercial',
   tasks: 'Tarefas e follow-ups',
   messages: 'Mensagens rápidas',
+  inbox: 'Atendimento',
   reports: 'Relatórios',
   settings: 'Configurações'
 };
