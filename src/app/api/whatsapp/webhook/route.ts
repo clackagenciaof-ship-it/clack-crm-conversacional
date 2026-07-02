@@ -16,6 +16,14 @@ export async function GET(request: Request) {
   const mode = searchParams.get('hub.mode');
   const token = searchParams.get('hub.verify_token');
   const challenge = searchParams.get('hub.challenge');
+  const health = searchParams.get('health');
+
+  if (health === '1') {
+    console.info('CLACK_WHATSAPP_WEBHOOK_HEALTH', { ok: true, hasVerifyToken: Boolean(process.env.WHATSAPP_VERIFY_TOKEN), hasServiceRole: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY) });
+    return Response.json({ ok: true, route: '/api/whatsapp/webhook', verifyTokenConfigured: Boolean(process.env.WHATSAPP_VERIFY_TOKEN), serviceRoleConfigured: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY) });
+  }
+
+  console.info('CLACK_WHATSAPP_WEBHOOK_VERIFY', { mode, tokenMatches: token === process.env.WHATSAPP_VERIFY_TOKEN, hasChallenge: Boolean(challenge) });
 
   if (mode === 'subscribe' && token === process.env.WHATSAPP_VERIFY_TOKEN && challenge) {
     return new Response(challenge, { status: 200 });
@@ -26,7 +34,10 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   const rawBody = await request.text();
+  console.info('CLACK_WHATSAPP_WEBHOOK_POST_RECEIVED', { bytes: rawBody.length, hasSignature: Boolean(request.headers.get('x-hub-signature-256')) });
+
   if (!isValidSignature(rawBody, request.headers.get('x-hub-signature-256'))) {
+    console.error('CLACK_WHATSAPP_WEBHOOK_INVALID_SIGNATURE');
     return Response.json({ ok: false, error: 'Assinatura inválida.' }, { status: 403 });
   }
 
@@ -34,11 +45,15 @@ export async function POST(request: Request) {
   try {
     payload = JSON.parse(rawBody);
   } catch (error) {
+    console.error('CLACK_WHATSAPP_WEBHOOK_INVALID_JSON');
     return Response.json({ ok: false, error: 'Payload inválido.' }, { status: 400 });
   }
 
   const supabase = createSupabaseServiceClient();
-  if (!supabase) return Response.json({ ok: true, stored: false, processed: false });
+  if (!supabase) {
+    console.error('CLACK_WHATSAPP_WEBHOOK_NO_SUPABASE_SERVICE_CLIENT');
+    return Response.json({ ok: true, stored: false, processed: false });
+  }
 
   const { data: eventRow, error: eventError } = await supabase.from('whatsapp_webhook_events').insert({ event_type: 'whatsapp_webhook', payload, processed: false }).select('*').single();
   if (eventError) console.error('Falha ao registrar webhook do WhatsApp.', eventError);
@@ -48,6 +63,7 @@ export async function POST(request: Request) {
     if (eventRow?.id) {
       await supabase.from('whatsapp_webhook_events').update({ company_id: result.companyId, processed: result.processedMessages > 0 || result.processedStatuses > 0 }).eq('id', eventRow.id);
     }
+    console.info('CLACK_WHATSAPP_WEBHOOK_PROCESSED', { stored: Boolean(eventRow?.id), processedMessages: result.processedMessages, processedStatuses: result.processedStatuses, companyId: result.companyId });
     return Response.json({ ok: true, stored: Boolean(eventRow?.id), processedMessages: result.processedMessages, processedStatuses: result.processedStatuses });
   } catch (error) {
     console.error('Falha ao processar webhook do WhatsApp.', error);
