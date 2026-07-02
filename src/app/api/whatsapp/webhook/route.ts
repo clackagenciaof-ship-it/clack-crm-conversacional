@@ -60,11 +60,12 @@ export async function POST(request: Request) {
 
   try {
     const result = await processWhatsAppWebhookPayload(supabase, payload);
+    const processed = result.processedMessages > 0 || result.duplicateMessages > 0 || result.processedStatuses > 0;
     if (eventRow?.id) {
-      await supabase.from('whatsapp_webhook_events').update({ company_id: result.companyId, processed: result.processedMessages > 0 || result.processedStatuses > 0 }).eq('id', eventRow.id);
+      await supabase.from('whatsapp_webhook_events').update({ company_id: result.companyId, processed }).eq('id', eventRow.id);
     }
-    console.info('CLACK_WHATSAPP_WEBHOOK_PROCESSED', { stored: Boolean(eventRow?.id), processedMessages: result.processedMessages, processedStatuses: result.processedStatuses, companyId: result.companyId });
-    return Response.json({ ok: true, stored: Boolean(eventRow?.id), processedMessages: result.processedMessages, processedStatuses: result.processedStatuses });
+    console.info('CLACK_WHATSAPP_WEBHOOK_PROCESSED', { stored: Boolean(eventRow?.id), processedMessages: result.processedMessages, duplicateMessages: result.duplicateMessages, processedStatuses: result.processedStatuses, companyId: result.companyId });
+    return Response.json({ ok: true, stored: Boolean(eventRow?.id), processed, processedMessages: result.processedMessages, duplicateMessages: result.duplicateMessages, processedStatuses: result.processedStatuses });
   } catch (error) {
     console.error('Falha ao processar webhook do WhatsApp.', error);
     return Response.json({ ok: true, stored: Boolean(eventRow?.id), processed: false });
