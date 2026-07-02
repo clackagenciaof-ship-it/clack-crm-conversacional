@@ -33,6 +33,7 @@ export function AtendimentoPage() {
   const [mensagens, setMensagens] = useState<Mensagem[]>([]);
   const [loading, setLoading] = useState(false);
   const [loadingMessages, setLoadingMessages] = useState(false);
+  const [lastRefresh, setLastRefresh] = useState<string | null>(null);
   const [replyText, setReplyText] = useState('');
   const [sending, setSending] = useState(false);
   const [sequenceRunning, setSequenceRunning] = useState(false);
@@ -49,9 +50,10 @@ export function AtendimentoPage() {
 
   async function getAccessToken() { const supabase = createSupabaseBrowserClient() as any; if (!supabase) throw new Error('Supabase não configurado.'); const { data, error } = await supabase.auth.getSession(); if (error) throw error; const token = data.session?.access_token; if (!token) throw new Error('Sessão expirada. Entre novamente no CRM.'); return token; }
   function assigneeName(id?: string | null) { if (!id) return 'Sem responsável'; return team.find((member) => member.id === id)?.name || 'Responsável não identificado'; }
+  function clearFilters() { setStatusFilter('Todas'); setOwnerFilter('Todos'); setPriorityFilter('Todas'); }
 
-  async function loadInbox() {
-    setLoading(true);
+  async function loadInbox(silent = false) {
+    if (!silent) setLoading(true);
     try {
       const profile = await getCurrentProfile();
       if (!profile?.company_id) return;
@@ -67,9 +69,16 @@ export function AtendimentoPage() {
       setFlowSteps(flowData.steps || []);
       const nextConversas = conversationRows as Conversa[];
       setConversas(nextConversas);
-      if (!selectedConversa && nextConversas[0]) setSelectedConversa(nextConversas[0]);
-    } catch (error) { console.error('Falha ao carregar atendimento.', error); } finally { setLoading(false); }
+      setLastRefresh(new Date().toISOString());
+      setSelectedConversa((current) => {
+        if (!nextConversas.length) return null;
+        const updatedCurrent = current ? nextConversas.find((conversa) => conversa.id === current.id) : null;
+        return updatedCurrent || nextConversas[0];
+      });
+    } catch (error) { console.error('Falha ao carregar atendimento.', error); } finally { if (!silent) setLoading(false); }
   }
+
+  async function refreshQueue() { clearFilters(); await loadInbox(); }
 
   async function openConversa(conversa: Conversa) { setSelectedConversa(conversa); if (!companyId) return; setLoadingMessages(true); try { const data = await listWhatsAppMessages(companyId, conversa.id); setMensagens(data as Mensagem[]); } catch (error) { console.error('Falha ao carregar mensagens da conversa.', error); } finally { setLoadingMessages(false); } }
 
@@ -86,7 +95,7 @@ export function AtendimentoPage() {
     const phone = normalizePhone(testPhone);
     if (!phone || !testMessage.trim()) { alert('Informe telefone e mensagem de teste.'); return; }
     setCreatingTest(true);
-    try { const now = new Date().toISOString(); const { data: conversa, error: conversaError } = await supabase.from('whatsapp_conversations').insert({ company_id: profile.company_id, customer_phone: phone, customer_name: testName.trim() || 'Cliente Teste', status: 'Aberta', priority: 'Normal', channel: 'WhatsApp', assigned_to: profile.id, last_message_at: now }).select('*').single(); if (conversaError) throw conversaError; const { error: messageError } = await supabase.from('whatsapp_messages').insert({ company_id: profile.company_id, conversation_id: conversa.id, direction: 'inbound', from_phone: phone, to_phone: 'CRM', message_type: 'text', body: testMessage.trim(), status: 'received', raw_payload: { source: 'manual_test' }, created_at: now }); if (messageError) throw messageError; await loadInbox(); await openConversa(conversa as Conversa); alert('Conversa teste criada.'); } catch (error) { console.error('Falha ao criar conversa teste.', error); alert('Não foi possível criar a conversa teste.'); } finally { setCreatingTest(false); }
+    try { const now = new Date().toISOString(); const { data: conversa, error: conversaError } = await supabase.from('whatsapp_conversations').insert({ company_id: profile.company_id, customer_phone: phone, customer_name: testName.trim() || 'Cliente Teste', status: 'Aberta', priority: 'Normal', channel: 'WhatsApp', assigned_to: profile.id, last_message_at: now }).select('*').single(); if (conversaError) throw conversaError; const { error: messageError } = await supabase.from('whatsapp_messages').insert({ company_id: profile.company_id, conversation_id: conversa.id, direction: 'inbound', from_phone: phone, to_phone: 'CRM', message_type: 'text', body: testMessage.trim(), status: 'received', raw_payload: { source: 'manual_test' }, created_at: now }); if (messageError) throw messageError; clearFilters(); await loadInbox(); await openConversa(conversa as Conversa); alert('Conversa teste criada.'); } catch (error) { console.error('Falha ao criar conversa teste.', error); alert('Não foi possível criar a conversa teste.'); } finally { setCreatingTest(false); }
   }
 
   async function sendReply(textOverride?: string) {
@@ -94,14 +103,14 @@ export function AtendimentoPage() {
     const outgoingText = (textOverride ?? replyText).trim();
     if (!outgoingText) { alert('Digite uma mensagem antes de enviar.'); return; }
     setSending(true);
-    try { const token = await getAccessToken(); const response = await fetch('/api/whatsapp/send', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ conversationId: selectedConversa.id, contactId: selectedConversa.contact_id || null, toPhone: selectedConversa.customer_phone, text: outgoingText }) }); const result = await response.json(); if (!response.ok || !result.ok) { alert(result.error || 'Não foi possível enviar a mensagem.'); return; } setReplyText(''); await openConversa(selectedConversa); await loadInbox(); alert(result.sent ? 'Mensagem enviada.' : 'Mensagem registrada. O envio real depende do token da Meta.'); } catch (error) { console.error('Falha ao enviar resposta.', error); alert('Falha ao enviar resposta.'); } finally { setSending(false); }
+    try { const token = await getAccessToken(); const response = await fetch('/api/whatsapp/send', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ conversationId: selectedConversa.id, contactId: selectedConversa.contact_id || null, toPhone: selectedConversa.customer_phone, text: outgoingText }) }); const result = await response.json(); if (!response.ok || !result.ok) { alert(result.error || 'Não foi possível enviar a mensagem.'); return; } setReplyText(''); await openConversa(selectedConversa); await loadInbox(true); alert(result.sent ? 'Mensagem enviada.' : 'Mensagem registrada. O envio real depende do token da Meta.'); } catch (error) { console.error('Falha ao enviar resposta.', error); alert('Falha ao enviar resposta.'); } finally { setSending(false); }
   }
 
   async function runSelectedFlow(mode: 'start' | 'next' | 'restart') {
     if (!selectedConversa) { alert('Selecione uma conversa.'); return; }
     if (!selectedFlowId && mode !== 'next') { alert('Selecione um fluxo para iniciar.'); return; }
     setSequenceRunning(true);
-    try { const result = await runFlowSequence({ conversationId: selectedConversa.id, flowId: selectedFlowId || undefined, mode }); await openConversa(selectedConversa); await loadInbox(); if (result.completed && !result.step) alert(result.message || 'Fluxo concluído.'); else alert(`${result.step ? `Passo ${result.step.position} executado. ` : ''}${result.result || 'Sequência atualizada.'}${result.completed ? ' Fluxo concluído.' : ''}`); } catch (error) { const message = error instanceof Error ? error.message : 'Não foi possível executar a sequência.'; alert(message); } finally { setSequenceRunning(false); }
+    try { const result = await runFlowSequence({ conversationId: selectedConversa.id, flowId: selectedFlowId || undefined, mode }); await openConversa(selectedConversa); await loadInbox(true); if (result.completed && !result.step) alert(result.message || 'Fluxo concluído.'); else alert(`${result.step ? `Passo ${result.step.position} executado. ` : ''}${result.result || 'Sequência atualizada.'}${result.completed ? ' Fluxo concluído.' : ''}`); } catch (error) { const message = error instanceof Error ? error.message : 'Não foi possível executar a sequência.'; alert(message); } finally { setSequenceRunning(false); }
   }
 
   async function generateWillSuggestion() {
@@ -113,6 +122,11 @@ export function AtendimentoPage() {
 
   useEffect(() => { loadInbox(); }, []);
   useEffect(() => { if (companyId && selectedConversa) openConversa(selectedConversa); }, [companyId, selectedConversa?.id]);
+  useEffect(() => {
+    if (!companyId) return;
+    const timer = window.setInterval(() => loadInbox(true), 5000);
+    return () => window.clearInterval(timer);
+  }, [companyId]);
 
   const filteredConversas = useMemo(() => conversas.filter((conversa) => (statusFilter === 'Todas' || conversa.status === statusFilter) && (priorityFilter === 'Todas' || (conversa.priority || 'Normal') === priorityFilter) && (ownerFilter === 'Todos' || (ownerFilter === 'Sem responsável' ? !conversa.assigned_to : conversa.assigned_to === ownerFilter))), [conversas, statusFilter, priorityFilter, ownerFilter]);
   const queueStats = { abertas: conversas.filter((item) => item.status === 'Aberta').length, atendimento: conversas.filter((item) => item.status === 'Em atendimento').length, resolvidas: conversas.filter((item) => item.status === 'Resolvida').length, arquivadas: conversas.filter((item) => item.status === 'Arquivada').length };
@@ -130,9 +144,9 @@ export function AtendimentoPage() {
       <div className="card pad">
         <div className="section-title"><h2>Fila de atendimento</h2><span>{loading ? 'Carregando...' : `${filteredConversas.length} conversa(s)`}</span></div>
         <div className="grid metrics" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', marginBottom: 12 }}><div className="metric"><span>Abertas</span><strong>{queueStats.abertas}</strong><small>aguardando</small></div><div className="metric"><span>Em atendimento</span><strong>{queueStats.atendimento}</strong><small>em andamento</small></div><div className="metric"><span>Resolvidas</span><strong>{queueStats.resolvidas}</strong><small>finalizadas</small></div><div className="metric"><span>Arquivadas</span><strong>{queueStats.arquivadas}</strong><small>histórico</small></div></div>
-        <button className="btn small" onClick={loadInbox}>Atualizar fila</button>
+        <p className="notice">Tempo real ativo. {lastRefresh ? `Última atualização: ${formatDate(lastRefresh)}` : "Aguardando primeira atualização."}</p>\n        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}><button className="btn small" onClick={refreshQueue}>Atualizar fila e limpar filtros</button><button className="btn small" onClick={clearFilters}>Limpar filtros</button></div>
         <div className="form-grid" style={{ marginTop: 12, marginBottom: 12 }}>{filterOptions.map((filter) => <button key={filter} className={statusFilter === filter ? 'btn primary' : 'btn'} onClick={() => setStatusFilter(filter)}>{filter}</button>)}<select className="select" value={ownerFilter} onChange={(event) => setOwnerFilter(event.target.value)}><option>Todos</option><option>Sem responsável</option>{team.map((member) => <option key={member.id} value={member.id}>{member.name}</option>)}</select><select className="select" value={priorityFilter} onChange={(event) => setPriorityFilter(event.target.value)}><option>Todas</option>{priorityOptions.map((priority) => <option key={priority}>{priority}</option>)}</select></div>
-        <div className="timeline">{filteredConversas.map((conversa) => (<button className="timeline-item" key={conversa.id} onClick={() => openConversa(conversa)} style={{ textAlign: 'left', width: '100%' }}><b>{conversa.customer_name || 'Cliente sem nome'}</b><br /><span className="notice">{conversa.customer_phone} • {conversa.status} • {conversa.priority || 'Normal'}</span><br /><span className="notice">Responsável: {assigneeName(conversa.assigned_to)} • Última: {formatDate(conversa.last_message_at)}</span></button>))}{!filteredConversas.length && <div className="empty">Nenhuma conversa encontrada para este filtro.</div>}</div>
+        <div className="timeline">{filteredConversas.map((conversa) => (<button className="timeline-item" key={conversa.id} onClick={() => openConversa(conversa)} style={{ textAlign: 'left', width: '100%' }}><b>{conversa.customer_name || 'Cliente sem nome'}</b><br /><span className="notice">{conversa.customer_phone} • {conversa.status} • {conversa.priority || 'Normal'}</span><br /><span className="notice">Responsável: {assigneeName(conversa.assigned_to)} • Última: {formatDate(conversa.last_message_at)}</span></button>))}{!filteredConversas.length && <div className="empty">Nenhuma conversa encontrada para este filtro. Clique em “Atualizar fila e limpar filtros”.</div>}</div>
       </div>
       <div className="card pad">
         <div className="section-title"><h2>{selectedConversa?.customer_name || 'Histórico da conversa'}</h2><span>{selectedConversa?.customer_phone || 'Selecione uma conversa'}</span></div>
