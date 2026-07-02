@@ -35,6 +35,8 @@ type WhatsAppChange = {
 
 type WhatsAppPayload = { entry?: Array<{ id?: string; changes?: WhatsAppChange[] }> };
 
+type InboundProcessResult = 'created' | 'duplicate' | false;
+
 function normalizePhone(phone?: string | null) {
   return (phone || '').replace(/\D/g, '');
 }
@@ -48,6 +50,25 @@ function messageBody(message: WhatsAppTextMessage) {
   if (message.type === 'audio') return '[áudio recebido]';
   if (message.type === 'video') return message.video?.caption || '[vídeo recebido]';
   return `[${message.type || 'mensagem'} recebida]`;
+}
+
+function resolveMessageCreatedAt(timestamp?: string) {
+  const now = new Date();
+  if (!timestamp) return now.toISOString();
+
+  const providerDate = new Date(Number(timestamp) * 1000);
+  const thirtyDaysAgo = now.getTime() - 1000 * 60 * 60 * 24 * 30;
+  const tenMinutesAhead = now.getTime() + 1000 * 60 * 10;
+
+  if (Number.isNaN(providerDate.getTime())) return now.toISOString();
+
+  // O payload de teste da Meta usa timestamp antigo fixo. Para a fila do CRM,
+  // gravamos a hora atual quando o timestamp do provedor estiver fora de uma janela útil.
+  if (providerDate.getTime() < thirtyDaysAgo || providerDate.getTime() > tenMinutesAhead) {
+    return now.toISOString();
+  }
+
+  return providerDate.toISOString();
 }
 
 async function listActiveWhatsAppAccounts(supabase: SupabaseServiceClient) {
@@ -139,7 +160,7 @@ async function findOrCreateConversation(params: { supabase: SupabaseServiceClien
   return created;
 }
 
-async function processInboundMessage(params: { supabase: SupabaseServiceClient; companyId: string; message: WhatsAppTextMessage; displayPhoneNumber?: string; contactName?: string | null }) {
+async function processInboundMessage(params: { supabase: SupabaseServiceClient; companyId: string; message: WhatsAppTextMessage; displayPhoneNumber?: string; contactName?: string | null }): Promise<InboundProcessResult> {
   const { supabase, companyId, message, displayPhoneNumber, contactName } = params;
   const customerPhone = normalizePhone(message.from);
   if (!customerPhone) return false;
@@ -152,22 +173,22 @@ async function processInboundMessage(params: { supabase: SupabaseServiceClient; 
       .eq('provider_message_id', message.id)
       .limit(1);
     if (duplicateError) console.error('Falha ao verificar duplicidade de mensagem WhatsApp.', duplicateError);
-    if (duplicate?.[0]) return false;
+    if (duplicate?.[0]) return 'duplicate';
   }
 
   const contact = await findContactByPhone(supabase, companyId, customerPhone);
   const conversation = await findOrCreateConversation({ supabase, companyId, contactId: contact?.id || null, customerPhone, customerName: contact?.name || contactName || null });
-  const createdAt = message.timestamp ? new Date(Number(message.timestamp) * 1000).toISOString() : new Date().toISOString();
+  const createdAt = resolveMessageCreatedAt(message.timestamp);
   const body = messageBody(message);
   await supabase.from('whatsapp_messages').insert({ company_id: companyId, conversation_id: conversation.id, contact_id: contact?.id || null, direction: 'inbound', provider_message_id: message.id || null, from_phone: customerPhone, to_phone: displayPhoneNumber || null, message_type: message.type || 'text', body, status: 'received', raw_payload: message, created_at: createdAt });
   await supabase.from('whatsapp_conversations').update({ contact_id: contact?.id || conversation.contact_id || null, customer_name: contact?.name || contactName || conversation.customer_name || null, last_message_at: createdAt, status: conversation.status === 'Arquivada' ? 'Aberta' : conversation.status, updated_at: new Date().toISOString() }).eq('id', conversation.id);
   if (contact?.id) await supabase.from('activity_logs').insert({ company_id: companyId, contact_id: contact.id, type: 'whatsapp_inbound', description: `WhatsApp recebido: ${body}` });
-  return true;
+  return 'created';
 }
 
 async function processStatusEvent(supabase: SupabaseServiceClient, companyId: string, status: WhatsAppStatus) {
   if (!status.id || !status.status) return false;
-  const createdAt = status.timestamp ? new Date(Number(status.timestamp) * 1000).toISOString() : new Date().toISOString();
+  const createdAt = resolveMessageCreatedAt(status.timestamp);
   const error = status.errors?.[0];
   const { error: statusError } = await supabase.from('whatsapp_status_events').insert({ company_id: companyId, provider_message_id: status.id, status: status.status, recipient_phone: normalizePhone(status.recipient_id), payload: status, created_at: createdAt });
   if (statusError) console.error('Falha ao registrar status WhatsApp.', statusError);
@@ -184,6 +205,7 @@ export async function processWhatsAppWebhookPayload(supabase: SupabaseServiceCli
   const entries = typedPayload.entry || [];
   const processedCompanyIds = new Set<string>();
   let processedMessages = 0;
+  let duplicateMessages = 0;
   let processedStatuses = 0;
 
   for (const entry of entries) {
@@ -195,8 +217,9 @@ export async function processWhatsAppWebhookPayload(supabase: SupabaseServiceCli
       const contactsByPhone = new Map<string, string | null>();
       for (const contact of change.value?.contacts || []) if (contact.wa_id) contactsByPhone.set(normalizePhone(contact.wa_id), contact.profile?.name || null);
       for (const message of change.value?.messages || []) {
-        const didProcess = await processInboundMessage({ supabase, companyId: account.company_id, message, displayPhoneNumber: metadata?.display_phone_number, contactName: contactsByPhone.get(normalizePhone(message.from)) || null });
-        if (didProcess) processedMessages += 1;
+        const result = await processInboundMessage({ supabase, companyId: account.company_id, message, displayPhoneNumber: metadata?.display_phone_number, contactName: contactsByPhone.get(normalizePhone(message.from)) || null });
+        if (result === 'created') processedMessages += 1;
+        if (result === 'duplicate') duplicateMessages += 1;
       }
       for (const status of change.value?.statuses || []) {
         const didProcess = await processStatusEvent(supabase, account.company_id, status);
@@ -205,5 +228,5 @@ export async function processWhatsAppWebhookPayload(supabase: SupabaseServiceCli
     }
   }
 
-  return { companyId: Array.from(processedCompanyIds)[0] || null, processedMessages, processedStatuses };
+  return { companyId: Array.from(processedCompanyIds)[0] || null, processedMessages, duplicateMessages, processedStatuses };
 }
