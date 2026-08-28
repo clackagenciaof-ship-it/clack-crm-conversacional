@@ -1,19 +1,11 @@
 "use client";
 
 import { useState } from 'react';
-import { createSupabaseBrowserClient } from '@/lib/supabase/client';
+import { getFreshAccessToken } from '@/lib/supabase/client';
 import type { ProfileRow } from '@/lib/supabase/crm-repository';
 
 async function getAccessToken() {
-  const supabase = createSupabaseBrowserClient() as any;
-  if (!supabase) throw new Error('Supabase não configurado.');
-
-  const { data, error } = await supabase.auth.getSession();
-  if (error) throw error;
-  const token = data.session?.access_token;
-  if (!token) throw new Error('Sessão expirada. Entre novamente no CRM.');
-
-  return token;
+  return getFreshAccessToken();
 }
 
 function buildRecoveryMessage(member: ProfileRow, companyName: string) {

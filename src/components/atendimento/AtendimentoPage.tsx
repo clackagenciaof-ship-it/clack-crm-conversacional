@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { suggestWithAIAgent } from '@/lib/crm/ai-agent-client';
-import { createSupabaseBrowserClient } from '@/lib/supabase/client';
+import { createSupabaseBrowserClient, getFreshAccessToken } from '@/lib/supabase/client';
 import { getCurrentProfile, listCompanyProfiles, listQuickMessages, listWhatsAppConversations, listWhatsAppMessages, type ProfileRow } from '@/lib/supabase/crm-repository';
 import { loadChatbotFlows, runFlowSequence, type ChatbotFlow } from '@/lib/crm/flow-admin';
 
@@ -35,10 +35,7 @@ export function AtendimentoPage(){
   const [operationNotice,setOperationNotice]=useState('');
 
   async function token(){
-    const supabase=createSupabaseBrowserClient() as any;
-    const {data,error}=await supabase?.auth.getSession();
-    if(error||!data?.session?.access_token)throw new Error('Sessão expirada.');
-    return data.session.access_token;
+    return getFreshAccessToken();
   }
   function memberName(id?:string|null){return id?team.find(m=>m.id===id)?.name||'Equipe':'Sem responsável'}
 
