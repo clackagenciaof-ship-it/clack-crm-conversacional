@@ -17,10 +17,10 @@ export const roleDescriptions: Record<UserRole, string> = {
 };
 
 export const roleScreens: Record<UserRole, Screen[]> = {
-  'Admin Empresa': ['dashboard', 'leads', 'kanban', 'tasks', 'messages', 'inbox', 'products', 'reports', 'finance', 'onboarding', 'settings'],
-  Gestor: ['dashboard', 'leads', 'kanban', 'tasks', 'messages', 'inbox', 'products', 'reports', 'finance', 'onboarding', 'settings'],
-  Vendedor: ['dashboard', 'leads', 'kanban', 'tasks', 'messages', 'products'],
-  Atendente: ['leads', 'tasks', 'messages', 'inbox', 'products'],
+  'Admin Empresa': ['dashboard', 'leads', 'kanban', 'tasks', 'messages', 'inbox', 'intelligence', 'public-engagement', 'products', 'reports', 'finance', 'onboarding', 'settings'],
+  Gestor: ['dashboard', 'leads', 'kanban', 'tasks', 'messages', 'inbox', 'intelligence', 'public-engagement', 'products', 'reports', 'finance', 'onboarding', 'settings'],
+  Vendedor: ['dashboard', 'leads', 'kanban', 'tasks', 'messages', 'intelligence', 'products'],
+  Atendente: ['leads', 'tasks', 'messages', 'inbox', 'public-engagement', 'products'],
   Financeiro: ['dashboard', 'kanban', 'products', 'reports', 'finance']
 };
 
