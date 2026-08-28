@@ -28,7 +28,7 @@ export function OnboardingPage(){
   const score=onboarding?.launch_score??Math.round(completed/steps.length*100);
 
   function toggle(key:string){const next={...checklist,[key]:!checklist[key]};setOnboarding(current=>current?{...current,checklist:next,launch_score:Math.round(Object.values(next).filter(Boolean).length/steps.length*100)}:current)}
-  function diagnose(){const next={...checklist,empresa:true};if((diag?.active_users||0)>0)next.usuarios=true;if((diag?.active_products||0)>0)next.produtos=true;if((diag?.pipeline_stages||0)>0)next.funil=true;if((diag?.active_flows||0)>0)next.automacoes=true;setOnboarding(current=>current?{...current,checklist:next,launch_score:Math.round(Object.values(next).filter(Boolean).length/steps.length*100)}:current)}
+  function diagnose(){const next: Record<string, boolean> = {...checklist,empresa:true};if((diag?.active_users||0)>0)next.usuarios=true;if((diag?.active_products||0)>0)next.produtos=true;if((diag?.pipeline_stages||0)>0)next.funil=true;if((diag?.active_flows||0)>0)next.automacoes=true;setOnboarding(current=>current?{...current,checklist:next,launch_score:Math.round(Object.values(next).filter(Boolean).length/steps.length*100)}:current)}
   async function save(){setBusy(true);try{const saved=await saveOnboarding({checklist,current_step:currentStep,status,notes});setOnboarding(saved);await refresh()}catch(e){alert(e instanceof Error?e.message:'Falha ao salvar.')}finally{setBusy(false)}}
 
   return <div className="workspace-stack">
