@@ -1,4 +1,4 @@
-import { createSupabaseBrowserClient, hasSupabaseConfig } from '@/lib/supabase/client';
+import { createSupabaseBrowserClient, getFreshSession, hasSupabaseConfig } from '@/lib/supabase/client';
 
 export type LoginResult = {
   ok: boolean;
@@ -47,9 +47,9 @@ export async function hasActiveSupabaseSession() {
   if (!supabase) return false;
 
   try {
-    const { data, error } = await supabase.auth.getSession();
-    if (error || !data.session) return false;
-    const access = await checkAccessStatus(supabase as any, data.session.user.id);
+    const session = await getFreshSession();
+    if (!session) return false;
+    const access = await checkAccessStatus(supabase as any, session.user.id);
     if (!access.ok) {
       await supabase.auth.signOut();
       return false;

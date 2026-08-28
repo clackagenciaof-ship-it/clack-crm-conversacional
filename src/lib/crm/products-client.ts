@@ -1,4 +1,4 @@
-import { createSupabaseBrowserClient } from '@/lib/supabase/client';
+import { getFreshAccessToken } from '@/lib/supabase/client';
 
 export type ProductService = {
   id: string;
@@ -33,13 +33,7 @@ export type ProductForm = {
 };
 
 async function getSessionHeader() {
-  const supabase = createSupabaseBrowserClient() as any;
-  if (!supabase) throw new Error('Supabase não configurado.');
-  const { data, error } = await supabase.auth.getSession();
-  if (error) throw error;
-  const token = data.session?.access_token;
-  if (!token) throw new Error('Sessão expirada. Entre novamente.');
-  return { Authorization: `Bearer ${token}` };
+  return { Authorization: `Bearer ${await getFreshAccessToken()}` };
 }
 
 export async function loadProducts() {

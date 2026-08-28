@@ -1,4 +1,4 @@
-import { createSupabaseBrowserClient } from '@/lib/supabase/client';
+import { getFreshAccessToken } from '@/lib/supabase/client';
 
 export type AutomationRule = {
   id: string;
@@ -40,13 +40,7 @@ export type AutomationForm = {
 };
 
 async function getSessionHeader() {
-  const supabase = createSupabaseBrowserClient() as any;
-  if (!supabase) throw new Error('Supabase não configurado.');
-  const { data, error } = await supabase.auth.getSession();
-  if (error) throw error;
-  const sessionToken = data.session?.access_token;
-  if (!sessionToken) throw new Error('Sessão expirada. Entre novamente no CRM.');
-  return { Authorization: `Bearer ${sessionToken}` };
+  return { Authorization: `Bearer ${await getFreshAccessToken()}` };
 }
 
 export async function loadAutomations() {

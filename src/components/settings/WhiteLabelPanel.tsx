@@ -5,11 +5,10 @@ import type { ChangeEvent } from 'react';
 import { applyBranding, defaultBranding, loadBranding, saveBranding, type CompanyBranding } from '@/lib/crm/branding-client';
 
 const palettes = [
-  { name: 'Clack Verde', primary: '#005954', secondary: '#338b85', accent: '#5dc1b9', bg: '#f4fffe' },
-  { name: 'Premium Azul', primary: '#0f2f4a', secondary: '#1f6f8b', accent: '#47b5d6', bg: '#f3fbff' },
-  { name: 'Executivo Preto', primary: '#111827', secondary: '#374151', accent: '#9ca3af', bg: '#f8fafc' },
-  { name: 'Comercial Roxo', primary: '#32115f', secondary: '#6d28d9', accent: '#a78bfa', bg: '#fbf8ff' },
-  { name: 'Energia Laranja', primary: '#7c2d12', secondary: '#ea580c', accent: '#fb923c', bg: '#fff8f1' }
+  { name: 'Clack Signature', primary: '#0FA3B1', secondary: '#B5E2FA', accent: '#F7A072', bg: '#F9F7F3' },
+  { name: 'Clack Areia', primary: '#0FA3B1', secondary: '#EDDEA4', accent: '#F7A072', bg: '#F9F7F3' },
+  { name: 'Premium Azul', primary: '#146C78', secondary: '#B5E2FA', accent: '#0FA3B1', bg: '#F9F7F3' },
+  { name: 'Executivo', primary: '#10282C', secondary: '#B5E2FA', accent: '#EDDEA4', bg: '#F9F7F3' }
 ];
 
 export function WhiteLabelPanel() {
@@ -77,7 +76,7 @@ export function WhiteLabelPanel() {
   }
 
   return <div className="card pad">
-    <div className="section-title"><div><h2>White label</h2><p className="notice">Personalize nome, marca, cores, promessa comercial e domínio por empresa cliente.</p></div><span>Fase 14</span></div>
+    <div className="section-title"><div><h2>White label</h2><p className="notice">Defina a identidade visual da empresa com hierarquia consistente entre título, destaque, fundo e ações.</p></div><span>identidade ativa</span></div>
     <div className="grid two-col" style={{ marginTop: 0 }}>
       <div>
         <div className="form-grid">

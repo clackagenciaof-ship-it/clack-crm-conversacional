@@ -48,21 +48,33 @@ export async function GET(request: Request) {
     onboarding = created;
   }
 
-  const [{ data: company }, { data: profiles }, { data: products }, { data: stages }, { data: flows }, { data: events }] = await Promise.all([
+  const [{ data: company }, { data: profiles }, { data: products }, { data: stages }, { data: flows }, { data: rules }, { data: messages }, { data: conversations }, { data: invoices }, { data: whatsapp }, { data: events }] = await Promise.all([
     context.service.from('companies').select('*').eq('id', companyId).maybeSingle(),
     context.service.from('profiles').select('id, name, email, role, status').eq('company_id', companyId),
     context.service.from('product_services').select('id, status').eq('company_id', companyId),
     context.service.from('pipeline_stages').select('id').eq('company_id', companyId),
     context.service.from('chatbot_flows').select('id, active').eq('company_id', companyId),
+    context.service.from('automation_rules').select('id, active').eq('company_id', companyId),
+    context.service.from('quick_messages').select('id').eq('company_id', companyId),
+    context.service.from('whatsapp_conversations').select('id,status').eq('company_id', companyId),
+    context.service.from('finance_invoices').select('id').eq('company_id', companyId),
+    context.service.from('whatsapp_accounts').select('id,status').eq('company_id', companyId).limit(1),
     context.service.from('onboarding_events').select('*').eq('company_id', companyId).order('created_at', { ascending: false }).limit(20)
   ]);
 
   const diagnostics = {
+    company_ready: Boolean(company?.name),
     active_users: (profiles || []).filter((p: any) => p.status === 'active').length,
     products: (products || []).length,
     active_products: (products || []).filter((p: any) => p.status === 'Ativo').length,
     pipeline_stages: (stages || []).length,
-    active_flows: (flows || []).filter((f: any) => f.active).length
+    quick_messages: (messages || []).length,
+    open_conversations: (conversations || []).filter((row: any) => ['Aberta','Em atendimento'].includes(row.status)).length,
+    finance_records: (invoices || []).length,
+    active_flows: (flows || []).filter((f: any) => f.active).length,
+    active_rules: (rules || []).filter((r: any) => r.active).length,
+    whatsapp_account: Boolean((whatsapp || [])[0]),
+    whatsapp_provider: Boolean(process.env.WHATSAPP_ACCESS_TOKEN && process.env.WHATSAPP_PHONE_NUMBER_ID)
   };
 
   return Response.json({ ok: true, onboarding, company, profiles: profiles || [], diagnostics, events: events || [] });

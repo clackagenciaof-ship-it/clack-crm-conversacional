@@ -1,4 +1,4 @@
-import { createSupabaseBrowserClient } from './client';
+import { createSupabaseBrowserClient, getFreshSession } from './client';
 import type { Database } from './database.types';
 
 export type ProfileRow = Database['public']['Tables']['profiles']['Row'];
@@ -27,14 +27,13 @@ function getClientOrThrow() {
 
 export async function getCurrentProfile() {
   const supabase = getClientOrThrow();
-  const { data: userData, error: userError } = await supabase.auth.getUser();
-  if (userError) throw userError;
-  if (!userData.user) return null;
+  const session = await getFreshSession();
+  if (!session?.user) return null;
 
   const { data, error } = await supabase
     .from('profiles')
     .select('*')
-    .eq('id', userData.user.id)
+    .eq('id', session.user.id)
     .single();
 
   if (error) throw error;

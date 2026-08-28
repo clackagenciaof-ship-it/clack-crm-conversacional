@@ -1,4 +1,4 @@
-import { createSupabaseBrowserClient } from '@/lib/supabase/client';
+import { createSupabaseBrowserClient, getFreshAccessToken } from '@/lib/supabase/client';
 import { getCurrentProfile } from '@/lib/supabase/crm-repository';
 
 export type OneOpsSnapshot = {
@@ -23,14 +23,17 @@ export type OneOpsSnapshot = {
     whatsappNumber?: string | null;
     webhook: boolean;
     automation: boolean;
+    automationEngine: boolean;
+    publicAutomationEngine: boolean;
+    publicAutomationActive: number;
+    lastAutomationRunAt?: string | null;
+    lastPublicAutomationRunAt?: string | null;
     ai: boolean;
   };
 };
 
 async function accessToken() {
-  const supabase = createSupabaseBrowserClient() as any;
-  const { data } = await supabase?.auth.getSession();
-  return data?.session?.access_token || null;
+  try { return await getFreshAccessToken(); } catch { return null; }
 }
 
 export async function loadOneOpsSnapshot(): Promise<OneOpsSnapshot> {
@@ -91,6 +94,11 @@ export async function loadOneOpsSnapshot(): Promise<OneOpsSnapshot> {
       whatsappNumber:health?.whatsapp?.account?.display_phone_number||null,
       webhook:health?.whatsapp?.webhookConfigured===true,
       automation:(health?.automation?.activeFlows||0)+(health?.automation?.activeRules||0)>0,
+      automationEngine:health?.automation?.engineHealthy===true,
+      publicAutomationEngine:health?.publicAutomation?.engineHealthy===true,
+      publicAutomationActive:Number(health?.publicAutomation?.active||0),
+      lastAutomationRunAt:health?.automation?.lastRunAt||null,
+      lastPublicAutomationRunAt:health?.publicAutomation?.lastRunAt||null,
       ai:health?.ai?.enabled===true
     }
   };

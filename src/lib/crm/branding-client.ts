@@ -1,4 +1,4 @@
-import { createSupabaseBrowserClient } from '@/lib/supabase/client';
+import { getFreshAccessToken } from '@/lib/supabase/client';
 
 export type CompanyBranding = {
   id?: string;
@@ -23,11 +23,11 @@ export const defaultBranding: CompanyBranding = {
   brand_name: 'CLACK CRM Conversacional',
   logo_url: null,
   favicon_url: null,
-  primary_color: '#005954',
-  secondary_color: '#338b85',
-  accent_color: '#5dc1b9',
-  background_color: '#f4fffe',
-  sidebar_color: '#005954',
+  primary_color: '#0FA3B1',
+  secondary_color: '#B5E2FA',
+  accent_color: '#F7A072',
+  background_color: '#F9F7F3',
+  sidebar_color: '#10282C',
   welcome_title: 'Venda mais, atenda melhor e acompanhe seu funil em tempo real.',
   welcome_subtitle: 'Seu CRM inteligente de vendas e atendimento.',
   custom_domain: null,
@@ -36,13 +36,7 @@ export const defaultBranding: CompanyBranding = {
 };
 
 async function getSessionHeader() {
-  const supabase = createSupabaseBrowserClient() as any;
-  if (!supabase) throw new Error('Supabase não configurado.');
-  const { data, error } = await supabase.auth.getSession();
-  if (error) throw error;
-  const token = data.session?.access_token;
-  if (!token) throw new Error('Sessão expirada. Entre novamente.');
-  return { Authorization: `Bearer ${token}` };
+  return { Authorization: `Bearer ${await getFreshAccessToken()}` };
 }
 
 export async function loadBranding() {
@@ -66,11 +60,12 @@ export async function saveBranding(branding: CompanyBranding) {
 export function applyBranding(branding: CompanyBranding) {
   if (typeof document === 'undefined') return;
   const root = document.documentElement;
-  root.style.setProperty('--deep', branding.primary_color || defaultBranding.primary_color);
-  root.style.setProperty('--primary', branding.secondary_color || defaultBranding.secondary_color);
+  root.style.setProperty('--primary', branding.primary_color || defaultBranding.primary_color);
+  root.style.setProperty('--sky', branding.secondary_color || defaultBranding.secondary_color);
   root.style.setProperty('--accent', branding.accent_color || defaultBranding.accent_color);
   root.style.setProperty('--bg', branding.background_color || defaultBranding.background_color);
-  root.style.setProperty('--grad', `linear-gradient(135deg, ${branding.primary_color} 0%, ${branding.secondary_color} 48%, ${branding.accent_color} 100%)`);
-  root.style.setProperty('--grad-soft', `linear-gradient(135deg, ${branding.primary_color}24, ${branding.accent_color}38)`);
+  root.style.setProperty('--sidebar', branding.sidebar_color || defaultBranding.sidebar_color);
+  root.style.setProperty('--grad', `linear-gradient(135deg, ${branding.primary_color} 0%, ${branding.secondary_color} 58%, ${branding.accent_color} 100%)`);
+  root.style.setProperty('--grad-soft', `linear-gradient(135deg, ${branding.secondary_color}66, ${branding.background_color} 68%, #EDDEA455 100%)`);
   document.title = branding.app_name || defaultBranding.app_name;
 }

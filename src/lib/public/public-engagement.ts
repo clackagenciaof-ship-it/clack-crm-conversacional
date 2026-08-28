@@ -1,4 +1,4 @@
-import { createSupabaseBrowserClient } from '@/lib/supabase/client';
+import { createSupabaseBrowserClient, getFreshAccessToken } from '@/lib/supabase/client';
 import { getCurrentProfile } from '@/lib/supabase/crm-repository';
 
 export type PublicOpsData = {
@@ -48,10 +48,7 @@ export async function updatePublic(table:string,id:string,payload:Record<string,
 }
 
 export async function sendPublicInformation(input:{contactId:string;purpose:'servico'|'evento'|'informacao_publica';text:string}){
-  const supabase=createSupabaseBrowserClient() as any;
-  const {data}=await supabase.auth.getSession();
-  const token=data.session?.access_token;
-  if(!token)throw new Error('Sessão expirada.');
+  const token=await getFreshAccessToken();
   const response=await fetch('/api/public/whatsapp/send',{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`},body:JSON.stringify(input)});
   const result=await response.json();
   if(!response.ok||!result.ok)throw new Error(result.error||'Falha no envio.');

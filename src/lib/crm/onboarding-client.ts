@@ -1,4 +1,4 @@
-import { createSupabaseBrowserClient } from '@/lib/supabase/client';
+import { getFreshAccessToken } from '@/lib/supabase/client';
 
 export type OnboardingData = {
   id: string;
@@ -12,11 +12,18 @@ export type OnboardingData = {
 };
 
 export type OnboardingDiagnostics = {
+  company_ready: boolean;
   active_users: number;
   products: number;
   active_products: number;
   pipeline_stages: number;
+  quick_messages: number;
+  open_conversations: number;
+  finance_records: number;
   active_flows: number;
+  active_rules: number;
+  whatsapp_account: boolean;
+  whatsapp_provider: boolean;
 };
 
 export type OnboardingEvent = {
@@ -27,13 +34,7 @@ export type OnboardingEvent = {
 };
 
 async function getSessionHeader() {
-  const supabase = createSupabaseBrowserClient() as any;
-  if (!supabase) throw new Error('Supabase não configurado.');
-  const { data, error } = await supabase.auth.getSession();
-  if (error) throw error;
-  const token = data.session?.access_token;
-  if (!token) throw new Error('Sessão expirada. Entre novamente.');
-  return { Authorization: `Bearer ${token}` };
+  return { Authorization: `Bearer ${await getFreshAccessToken()}` };
 }
 
 export async function loadOnboarding() {

@@ -2,6 +2,9 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { insertPublic, loadPublicOps, sendPublicInformation, updatePublic, type PublicOpsData } from '@/lib/public/public-engagement';
+import { createSupabaseBrowserClient } from '@/lib/supabase/client';
+import { LeafletMap } from './LeafletMap';
+import { PublicAutomationPanel } from './PublicAutomationPanel';
 
 type Tab='overview'|'electorate'|'contacts'|'leaders'|'requests'|'tasks'|'events'|'agenda'|'geo'|'communication'|'assets'|'simulator'|'audit';
 
@@ -43,6 +46,21 @@ export function PublicEngagementPage(){
     finally{setLoading(false);}
   }
   useEffect(()=>{reload()},[]);
+  useEffect(()=>{
+    const supabase=createSupabaseBrowserClient() as any;
+    if(!supabase?.channel)return;
+    let timer:number|undefined;
+    const sync=()=>{if(timer)window.clearTimeout(timer);timer=window.setTimeout(()=>reload(),300)};
+    const channel=supabase.channel('clack-public-live')
+      .on('postgres_changes',{event:'*',schema:'public',table:'public_contacts'},sync)
+      .on('postgres_changes',{event:'*',schema:'public',table:'public_requests'},sync)
+      .on('postgres_changes',{event:'*',schema:'public',table:'public_events'},sync)
+      .on('postgres_changes',{event:'*',schema:'public',table:'public_agenda'},sync)
+      .on('postgres_changes',{event:'*',schema:'public',table:'public_leaders'},sync)
+      .on('postgres_changes',{event:'*',schema:'public',table:'public_message_automation_runs'},sync)
+      .subscribe();
+    return()=>{if(timer)window.clearTimeout(timer);supabase.removeChannel?.(channel)};
+  },[]);
 
   async function create(table:string,payload:Record<string,unknown>,reset?:()=>void){
     setBusy(true);try{await insertPublic(table,payload);reset?.();await reload();}catch(error){alert(error instanceof Error?error.message:'Não foi possível salvar.');}finally{setBusy(false);}
@@ -56,6 +74,10 @@ export function PublicEngagementPage(){
   const consenting=data.contacts.filter((r:any)=>r.consent_status).length;
   const geoRows=data.territories.filter((r:any)=>r.latitude&&r.longitude);
   const geo=data.territories.find((r:any)=>r.id===selectedGeo)||geoRows[0]||null;
+  const mapPoints=[
+    ...geoRows.map((r:any)=>({id:r.id,lat:number(r.latitude),lng:number(r.longitude),title:`${r.city}/${r.state}`,subtitle:`${r.territory_name||'Território'} · eleitorado ${fmt(r.electorate_total)}`,kind:'territory' as const})),
+    ...data.contacts.filter((r:any)=>r.latitude&&r.longitude).map((r:any)=>({id:r.id,lat:number(r.latitude),lng:number(r.longitude),title:r.name,subtitle:`${r.neighborhood||''} ${r.city||''}/${r.state||''}`,kind:'contact' as const}))
+  ];
   const leaderProgress=data.leaders.map((l:any)=>({...l,current:data.contacts.filter((c:any)=>c.leader_id===l.id).length}));
 
   const sim=useMemo(()=>{
@@ -90,8 +112,19 @@ export function PublicEngagementPage(){
         <div className="card metric"><span>Demandas abertas</span><strong>{requestOpen}</strong><small>para acompanhamento</small></div>
         <div className="card metric"><span>Eventos futuros</span><strong>{upcomingEvents}</strong><small>planejados</small></div>
       </section>
+      <section className="card pad public-command-center">
+        <div className="section-title"><div><span className="panel-eyebrow">Central de ações</span><h2>Operar sem sair do Público 360</h2><p className="panel-subtitle">Cada botão abre a área que executa a ação e salva o resultado no banco.</p></div><span>ação rápida</span></div>
+        <div className="quick-action-grid">
+          <button onClick={()=>setTab('contacts')}><b>Novo contato</b><span>Cadastrar relacionamento e consentimento</span></button>
+          <button onClick={()=>setTab('requests')}><b>Nova demanda</b><span>Registrar solicitação, prazo e prioridade</span></button>
+          <button onClick={()=>setTab('events')}><b>Programar evento</b><span>Organizar data, local e confirmação</span></button>
+          <button onClick={()=>setTab('geo')}><b>Abrir mapa</b><span>Visualizar territórios e pontos georreferenciados</span></button>
+          <button onClick={()=>setTab('communication')}><b>Enviar informação</b><span>WhatsApp com consentimento e auditoria</span></button>
+          <button onClick={()=>setTab('communication')}><b>Automatizar avisos</b><span>Programar serviço, evento ou informação pública</span></button>
+        </div>
+      </section>
       <section className="grid two-col"><div className="card pad"><div className="section-title"><h2>Eleitorado por cidade</h2><span>agregado</span></div>{bars(electorateByCity,'Cadastre dados oficiais por cidade.')}</div><div className="card pad"><div className="section-title"><h2>Contatos por cidade</h2><span>base de relacionamento</span></div>{bars(contactsByCity,'Nenhum contato cadastrado.')}</div></section>
-      <section className="grid two-col"><div className="card pad"><div className="section-title"><h2>Rede de lideranças</h2><span>progresso de cadastros</span></div><div className="compact-list">{leaderProgress.slice(0,8).map((l:any)=><div className="compact-row" key={l.id}><div><b>{l.name}</b><small>{l.city}/{l.state} · {l.current}/{l.target_contacts||0} contatos</small></div><span className="health ok">{pct(l.current,number(l.target_contacts))}%</span></div>)}{!leaderProgress.length&&<div className="empty">Cadastre a primeira liderança.</div>}</div></div><div className="card pad"><div className="section-title"><h2>Operação WhatsApp</h2><span>canal conectado</span></div><div className="integration-grid"><div><b>Instância</b><small>{data.whatsappAccount?.display_phone_number||'não cadastrada'}</small><span className={data.whatsappAccount?'health ok':'health warn'}>{data.whatsappAccount?.status||'Atenção'}</span></div><div><b>Consentimento</b><small>contatos autorizados</small><span className="health ok">{consenting}</span></div></div><button className="btn primary" onClick={()=>setTab('communication')}>Abrir comunicação</button></div></section>
+      <section className="grid two-col"><div className="card pad"><div className="section-title"><h2>Rede de lideranças</h2><span>progresso de cadastros</span></div><div className="compact-list">{leaderProgress.slice(0,8).map((l:any)=><div className="compact-row" key={l.id}><div><b>{l.name}</b><small>{l.city}/{l.state} · {l.current}/{l.target_contacts||0} contatos</small></div><span className="health ok">{pct(l.current,number(l.target_contacts))}%</span></div>)}{!leaderProgress.length&&<div className="empty">Cadastre a primeira liderança.</div>}</div></div><div className="card pad public-whatsapp-card"><div className="section-title"><div><span className="panel-eyebrow">Canal operacional</span><h2>Operação WhatsApp</h2></div><span>{data.whatsappAccount?'conectado':'configuração necessária'}</span></div><div className="integration-grid"><div><b>Instância</b><small>{data.whatsappAccount?.display_phone_number||'não cadastrada'}</small><span className={data.whatsappAccount?'health ok':'health warn'}>{data.whatsappAccount?.status||'Atenção'}</span></div><div><b>Base autorizada</b><small>contatos com consentimento</small><span className="health ok">{consenting}</span></div></div><div className="card-actions"><button className="btn primary" onClick={()=>setTab('communication')}>Abrir comunicação</button><button className="btn" onClick={()=>setTab('communication')}>Programar automação</button></div></div></section>
     </>}
 
     {!loading&&tab==='electorate'&&<section className="grid two-col">
@@ -128,13 +161,14 @@ export function PublicEngagementPage(){
 
     {!loading&&tab==='geo'&&<section className="grid two-col">
       <div className="card pad"><div className="section-title"><h2>Territórios georreferenciados</h2><span>{geoRows.length}</span></div><select className="select full" value={geo?.id||''} onChange={e=>setSelectedGeo(e.target.value)}><option value="">Selecione</option>{geoRows.map((r:any)=><option key={r.id} value={r.id}>{r.city}/{r.state} · {r.territory_name||'território'}</option>)}</select>{geo?<div className="geo-summary"><b>{geo.city}/{geo.state}</b><span>{geo.latitude}, {geo.longitude}</span><span>Eleitorado agregado: {fmt(geo.electorate_total)}</span></div>:<div className="empty">Cadastre latitude e longitude no território para abrir o mapa.</div>}</div>
-      <div className="card pad map-card">{geo?<iframe title="Mapa territorial" loading="lazy" src={`https://www.openstreetmap.org/export/embed.html?bbox=${number(geo.longitude)-0.08}%2C${number(geo.latitude)-0.06}%2C${number(geo.longitude)+0.08}%2C${number(geo.latitude)+0.06}&layer=mapnik&marker=${geo.latitude}%2C${geo.longitude}`}/>:<div className="empty">Mapa aguardando coordenadas.</div>}</div>
+      <div className="card pad map-card"><div className="section-title"><div><span className="panel-eyebrow">Mapa interativo</span><h2>Leaflet + OpenStreetMap</h2><p className="panel-subtitle">Territórios e contatos georreferenciados no mesmo mapa operacional.</p></div><span>{mapPoints.length} ponto(s)</span></div><LeafletMap points={mapPoints} selectedId={geo?.id||selectedGeo} onSelect={(id)=>{if(geoRows.some((r:any)=>r.id===id))setSelectedGeo(id)}}/></div>
       <details className="card pad create-panel full-span"><summary>+ Cadastrar território com coordenadas</summary><div className="form-grid" style={{marginTop:16}}><input className="input" placeholder="Cidade" value={territory.city} onChange={e=>setTerritory({...territory,city:e.target.value})}/><input className="input" placeholder="UF" value={territory.state} onChange={e=>setTerritory({...territory,state:e.target.value.toUpperCase()})}/><input className="input" placeholder="Região / território" value={territory.territory_name} onChange={e=>setTerritory({...territory,territory_name:e.target.value})}/><input className="input" type="number" placeholder="Eleitorado agregado" value={territory.electorate_total} onChange={e=>setTerritory({...territory,electorate_total:e.target.value})}/><input className="input" placeholder="Latitude" value={territory.latitude} onChange={e=>setTerritory({...territory,latitude:e.target.value})}/><input className="input" placeholder="Longitude" value={territory.longitude} onChange={e=>setTerritory({...territory,longitude:e.target.value})}/><button className="btn primary" onClick={()=>create('public_territories',{...territory,electorate_total:number(territory.electorate_total)||null,population_total:number(territory.population_total)||null,latitude:number(territory.latitude)||null,longitude:number(territory.longitude)||null,source_date:new Date().toISOString().slice(0,10)})}>Salvar território</button></div></details>
     </section>}
 
     {!loading&&tab==='communication'&&<section className="grid two-col">
       <div className="card pad"><div className="section-title"><h2>WhatsApp conectado</h2><span>{data.whatsappAccount?.status||'Sem conta'}</span></div><div className="integration-grid"><div><b>Instância</b><small>{data.whatsappAccount?.display_phone_number||'não configurada'}</small><span className={data.whatsappAccount?'health ok':'health warn'}>{data.whatsappAccount?'Ativa':'Atenção'}</span></div><div><b>Base autorizada</b><small>consentimento registrado</small><span className="health ok">{consenting}</span></div></div></div>
-      <div className="card pad"><div className="section-title"><h2>Enviar informação</h2><span>um contato autorizado</span></div><select className="select full" value={message.contactId} onChange={e=>setMessage({...message,contactId:e.target.value})}><option value="">Selecione um contato</option>{data.contacts.filter((c:any)=>c.consent_status&&c.phone).map((c:any)=><option key={c.id} value={c.id}>{c.name} · {c.city}</option>)}</select><select className="select full" value={message.purpose} onChange={e=>setMessage({...message,purpose:e.target.value as typeof message.purpose})}><option value="informacao_publica">Informação pública</option><option value="evento">Evento</option><option value="servico">Serviço / atendimento</option></select><textarea className="textarea full" placeholder="Mensagem informativa" value={message.text} onChange={e=>setMessage({...message,text:e.target.value})}/><button className="btn primary" disabled={busy} onClick={sendInfo}>Enviar / registrar no WhatsApp</button><p className="notice">O módulo exige consentimento e finalidade informativa. Não cria segmentação persuasiva por preferência política.</p></div>
+      <div className="card pad"><div className="section-title"><div><span className="panel-eyebrow">Envio individual</span><h2>Enviar informação</h2><p className="panel-subtitle">Mensagem registrada no histórico do contato e no atendimento.</p></div><span>consentimento obrigatório</span></div><select className="select full" value={message.contactId} onChange={e=>setMessage({...message,contactId:e.target.value})}><option value="">Selecione um contato</option>{data.contacts.filter((c:any)=>c.consent_status&&c.phone).map((c:any)=><option key={c.id} value={c.id}>{c.name} · {c.city}</option>)}</select><select className="select full" value={message.purpose} onChange={e=>setMessage({...message,purpose:e.target.value as typeof message.purpose})}><option value="informacao_publica">Informação pública</option><option value="evento">Evento</option><option value="servico">Serviço / atendimento</option></select><textarea className="textarea full" placeholder="Mensagem informativa" value={message.text} onChange={e=>setMessage({...message,text:e.target.value})}/><button className="btn primary" disabled={busy} onClick={sendInfo}>Enviar agora</button><p className="notice">O módulo exige consentimento e finalidade informativa. Não segmenta por preferência política.</p></div>
+      <div className="full-span"><PublicAutomationPanel contacts={data.contacts}/></div>
     </section>}
 
     {!loading&&tab==='assets'&&<section className="grid two-col">

@@ -40,12 +40,12 @@ export default function Home() {
     {allowed&&crm.screen==="tasks"&&<TasksPage tasks={crm.tasks} leads={crm.leads} taskForm={crm.taskForm} setTaskForm={crm.setTaskForm} addTask={crm.addTask} completeTask={crm.completeTask} updateTaskItem={crm.updateTaskItem} removeTask={crm.removeTask}/>}
     {allowed&&crm.screen==="messages"&&<MessagesPage messages={crm.messages} setMessages={crm.setMessages} copyMessage={crm.copyMessage} demoMode={crm.demoMode}/>}
     {allowed&&crm.screen==="inbox"&&<AtendimentoPage/>}
-    {allowed&&crm.screen==="intelligence"&&<IntelligencePage leads={crm.leads} deals={crm.deals} tasks={crm.tasks}/>}
+    {allowed&&crm.screen==="intelligence"&&<IntelligencePage leads={crm.leads} deals={crm.deals} tasks={crm.tasks} setScreen={safeSetScreen}/>}
     {allowed&&crm.screen==="public-engagement"&&<PublicEngagementPage/>}
     {allowed&&crm.screen==="products"&&<ProductsPage/>}
     {allowed&&crm.screen==="reports"&&<ReportsPage leads={crm.leads} deals={crm.deals} tasks={crm.tasks}/>}
     {allowed&&crm.screen==="finance"&&<FinancePage/>}
-    {allowed&&crm.screen==="onboarding"&&<OnboardingPage/>}
+    {allowed&&crm.screen==="onboarding"&&<OnboardingPage setScreen={safeSetScreen}/>}
     {allowed&&crm.screen==="settings"&&<SettingsPage currentRole={crm.userRole} currentUserName={crm.userName} setUserRole={crm.setUserRole}/>}
 
     {crm.selectedLead&&allowed&&<LeadDrawer lead={crm.selectedLead} deals={crm.deals.filter(d=>d.leadId===crm.selectedLead?.id)} tasks={crm.tasks.filter(t=>t.leadId===crm.selectedLead?.id)} messages={crm.messages} onClose={()=>crm.setSelectedLead(null)} openConversation={crm.openConversation} copyMessage={crm.copyMessage} updateLead={crm.updateLead} addLeadNote={crm.addLeadNote}/>}

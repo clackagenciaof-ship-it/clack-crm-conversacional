@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { normalizeRole, roleDescriptions, roleLabels } from '@/lib/crm/permissions';
 import { deleteWhatsAppAccount, formFromWhatsAppAccount, initialWhatsAppAccountForm, loadWhatsAppAccounts, saveWhatsAppAccount, type WhatsAppAccount, type WhatsAppAccountForm } from '@/lib/whatsapp/account-persistence';
-import { createSupabaseBrowserClient } from '@/lib/supabase/client';
+import { createSupabaseBrowserClient, getFreshAccessToken } from '@/lib/supabase/client';
 import { getCurrentProfile, listCompanyProfiles, type ProfileRow } from '@/lib/supabase/crm-repository';
 import { UserOnboardingActions } from './UserOnboardingActions';
 import type { UserRole } from '@/types/crm';
@@ -53,13 +53,7 @@ export function SettingsPage({ currentRole, currentUserName, setUserRole }: Sett
   const roleCounts = useMemo(() => roles.map((role) => ({ role, count: visibleTeam.filter((member) => normalizeRole(member.role) === role && member.status === 'active').length })), [visibleTeam]);
 
   async function getAccessToken() {
-    const supabase = createSupabaseBrowserClient() as any;
-    if (!supabase) throw new Error('Supabase não configurado.');
-    const { data, error } = await supabase.auth.getSession();
-    if (error) throw error;
-    const token = data.session?.access_token;
-    if (!token) throw new Error('Sessão expirada. Entre novamente no CRM.');
-    return token;
+    return getFreshAccessToken();
   }
 
   async function loadCompanyPlan(companyId: string) {
@@ -284,7 +278,6 @@ export function SettingsPage({ currentRole, currentUserName, setUserRole }: Sett
         </div>
       </div>
 
-      <div className="card pad"><h2>Módulos em breve</h2><p className="notice">Automação, InfinitePay, API oficial de mensageria, webhooks, white label e IA.</p></div>
     </div>
   );
 }
