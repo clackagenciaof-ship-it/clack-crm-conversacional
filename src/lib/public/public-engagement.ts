@@ -6,7 +6,7 @@ export type PublicTerritory = {
   state: string;
   city: string;
   territory_name: string | null;
-  electorate_total: number | null;
+  population_total: number | null;
   source_name: string | null;
   source_date: string | null;
 };
@@ -23,7 +23,7 @@ export type PublicContact = {
   consent_channel: string | null;
 };
 
-export type PublicBroadcast = {
+export type PublicNotice = {
   id: string;
   title: string;
   body: string;
@@ -44,29 +44,29 @@ async function context() {
 
 export async function loadPublicEngagement() {
   const { companyId, supabase } = await context();
-  const [territories, contacts, broadcasts] = await Promise.all([
-    supabase.from("public_territories").select("*").eq("company_id", companyId).order("electorate_total", { ascending: false }),
+  const [territories, contacts, notices] = await Promise.all([
+    supabase.from("public_territories").select("*").eq("company_id", companyId).order("population_total", { ascending: false }),
     supabase.from("public_contacts").select("*").eq("company_id", companyId).order("created_at", { ascending: false }).limit(100),
-    supabase.from("public_broadcasts").select("*").eq("company_id", companyId).order("created_at", { ascending: false }).limit(50)
+    supabase.from("public_notices").select("*").eq("company_id", companyId).order("created_at", { ascending: false }).limit(50)
   ]);
   if (territories.error) throw territories.error;
   if (contacts.error) throw contacts.error;
-  if (broadcasts.error) throw broadcasts.error;
+  if (notices.error) throw notices.error;
   return {
     territories: (territories.data || []) as PublicTerritory[],
     contacts: (contacts.data || []) as PublicContact[],
-    broadcasts: (broadcasts.data || []) as PublicBroadcast[]
+    notices: (notices.data || []) as PublicNotice[]
   };
 }
 
-export async function createPublicTerritory(input: { state: string; city: string; territory_name?: string; electorate_total?: number; source_name?: string }) {
+export async function createPublicTerritory(input: { state: string; city: string; territory_name?: string; population_total?: number; source_name?: string }) {
   const { companyId, supabase } = await context();
   const { error } = await supabase.from("public_territories").insert({
     company_id: companyId,
     state: input.state.trim().toUpperCase(),
     city: input.city.trim(),
     territory_name: input.territory_name?.trim() || null,
-    electorate_total: Number.isFinite(input.electorate_total) ? input.electorate_total : null,
+    population_total: Number.isFinite(input.population_total) ? input.population_total : null,
     source_name: input.source_name?.trim() || null,
     source_date: new Date().toISOString().slice(0, 10)
   });
@@ -89,9 +89,9 @@ export async function createPublicContact(input: { name: string; phone?: string;
   if (error) throw error;
 }
 
-export async function createPublicBroadcast(input: { title: string; body: string; purpose: "servico" | "evento" | "informacao_publica"; city?: string; state?: string }) {
+export async function createPublicNotice(input: { title: string; body: string; purpose: "servico" | "evento" | "informacao_publica"; city?: string; state?: string }) {
   const { companyId, supabase } = await context();
-  const { error } = await supabase.from("public_broadcasts").insert({
+  const { error } = await supabase.from("public_notices").insert({
     company_id: companyId,
     title: input.title.trim(),
     body: input.body.trim(),
