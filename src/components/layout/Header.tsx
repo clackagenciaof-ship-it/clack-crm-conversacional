@@ -18,6 +18,8 @@ const titles: Record<Screen, string> = {
   tasks: 'Tarefas e follow-ups',
   messages: 'Mensagens rápidas',
   inbox: 'Atendimento',
+  intelligence: 'ONE Intelligence',
+  'public-engagement': 'Relacionamento Público',
   products: 'Produtos e serviços',
   reports: 'Relatórios',
   finance: 'Financeiro',
