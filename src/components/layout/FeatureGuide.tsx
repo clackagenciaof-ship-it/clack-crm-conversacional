@@ -97,6 +97,30 @@ const guideContent: Record<Screen, GuideContent> = {
       Vendedor: 'Use quando uma conversa já estiver pronta para virar oportunidade.'
     }
   },
+  intelligence: {
+    title: 'ONE Intelligence: decisão e execução comercial',
+    intro: 'Combina Customer 360, Next Best Action, Revenue Intelligence e OmniRoute dentro do CLACK.',
+    what: 'Calcula pipeline, forecast ponderado, prioridades, origens de captação e sinais de execução com base nos dados atuais.',
+    how: 'Use as prioridades para decidir quem abordar, quais oportunidades acelerar e quais canais de captação merecem investimento.',
+    decision: 'Onde acelerar: follow-ups vencidos, leads quentes, oportunidades abertas e origens com maior volume devem orientar a rotina.',
+    roleTip: {
+      'Admin Empresa': 'Use como camada executiva para conectar operação, receita, atendimento e próximos passos.',
+      Gestor: 'Use para distribuir foco e corrigir gargalos antes que virem perda de receita.',
+      Vendedor: 'Use as próximas ações para organizar o dia e atacar as oportunidades com maior chance de avanço.'
+    }
+  },
+  'public-engagement': {
+    title: 'Relacionamento Público: território, atendimento e informação',
+    intro: 'Organiza relacionamento público, demandas, consentimento e estatísticas territoriais agregadas.',
+    what: 'Registra territórios, população agregada com fonte, contatos, consentimento e rascunhos de comunicação de serviço, evento e informação pública.',
+    how: 'Mapeie municípios com dados oficiais, registre contatos e consentimento, organize demandas e prepare comunicações informativas.',
+    decision: 'Onde acelerar: territórios com maior demanda de atendimento, solicitações pendentes e cobertura de informação insuficiente.',
+    roleTip: {
+      'Admin Empresa': 'Use a vertical com governança, LGPD e separação clara entre relacionamento público e comunicação comercial.',
+      Gestor: 'Acompanhe cobertura territorial, demandas e comunicações informativas.',
+      Atendente: 'Registre contatos e demandas com histórico e consentimento.'
+    }
+  },
   products: {
     title: 'Produtos e serviços: catálogo comercial',
     intro: 'Organiza o que a empresa vende para propostas, automações, financeiro e Agente Will trabalharem com referência real.',
