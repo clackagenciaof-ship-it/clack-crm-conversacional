@@ -1,83 +1,45 @@
-import { CRM_USERS, LEAD_SOURCES } from '@/lib/crm/constants';
+"use client";
+
 import { formatCurrencyBRL as brl } from '@/lib/crm/formatters';
 import type { Lead, Opportunity, Task } from '@/types/crm';
 
-type ReportsPageProps = { leads: Lead[]; deals: Opportunity[]; tasks: Task[] };
-const users = CRM_USERS.map((user) => user.name);
-const pct = (value: number) => `${Math.round(value)}%`;
-const max = (values: number[]) => Math.max(1, ...values);
+type Props={leads:Lead[];deals:Opportunity[];tasks:Task[]};
+const pct=(v:number)=>`${Math.round(v)}%`;
 
-function probability(deal: Opportunity) {
-  if (typeof deal.probability === 'number') return deal.probability;
-  if (deal.status === 'Ganha') return 100;
-  if (deal.status === 'Perdida') return 0;
-  return 30;
-}
+function probability(deal:Opportunity){if(typeof deal.probability==='number')return deal.probability;if(deal.status==='Ganha')return 100;if(deal.status==='Perdida')return 0;return 30}
 
-export function ReportsPage({ leads, deals, tasks }: ReportsPageProps) {
-  const wonDeals = deals.filter((deal) => deal.status === 'Ganha');
-  const lostDeals = deals.filter((deal) => deal.status === 'Perdida');
-  const openDeals = deals.filter((deal) => deal.status === 'Aberta');
-  const soldValue = wonDeals.reduce((total, deal) => total + deal.value, 0);
-  const openValue = openDeals.reduce((total, deal) => total + deal.value, 0);
-  const forecastValue = openDeals.reduce((total, deal) => total + deal.value * probability(deal) / 100, 0);
-  const conversionRate = deals.length ? wonDeals.length / deals.length * 100 : 0;
-  const averageTicket = wonDeals.length ? soldValue / wonDeals.length : 0;
-  const completedTasks = tasks.filter((task) => task.status === 'Concluída').length;
-  const taskRate = tasks.length ? completedTasks / tasks.length * 100 : 0;
+export function ReportsPage({leads,deals,tasks}:Props){
+  const won=deals.filter(d=>d.status==='Ganha'),lost=deals.filter(d=>d.status==='Perdida'),open=deals.filter(d=>d.status==='Aberta');
+  const sold=won.reduce((s,d)=>s+Number(d.value||0),0),openValue=open.reduce((s,d)=>s+Number(d.value||0),0);
+  const forecast=open.reduce((s,d)=>s+Number(d.value||0)*probability(d)/100,0);
+  const conversion=deals.length?won.length/deals.length*100:0,ticket=won.length?sold/won.length:0;
+  const completed=tasks.filter(t=>t.status==='Concluída').length,taskRate=tasks.length?completed/tasks.length*100:0;
+  const sourceMap=leads.reduce<Record<string,number>>((acc,l)=>{const k=l.source||'Não informado';acc[k]=(acc[k]||0)+1;return acc},{});
+  const sources=Object.entries(sourceMap).sort((a,b)=>b[1]-a[1]),sourceMax=Math.max(...sources.map(([,v])=>v),1);
+  const stages=Object.entries(deals.reduce<Record<string,{count:number,value:number}>>((acc,d)=>{const k=d.stage||'Sem etapa';acc[k]=acc[k]||{count:0,value:0};acc[k].count++;acc[k].value+=Number(d.value||0);return acc},{}));
+  const stageMax=Math.max(...stages.map(([,v])=>v.value),1);
+  const owners=Object.values(deals.reduce<Record<string,{name:string,total:number,won:number,value:number}>>((acc,d)=>{const k=d.owner||'Equipe';acc[k]=acc[k]||{name:k,total:0,won:0,value:0};acc[k].total++;if(d.status==='Ganha'){acc[k].won++;acc[k].value+=Number(d.value||0)}return acc},{})).sort((a,b)=>b.value-a.value);
 
-  const sourceCounts = LEAD_SOURCES.map((source) => ({ name: source, value: leads.filter((lead) => lead.source === source).length }));
-  const sourceMax = max(sourceCounts.map((item) => item.value));
-  const temperatures = ['Quente', 'Morno', 'Frio'].map((temperature) => ({ name: temperature, value: leads.filter((lead) => lead.temperature === temperature).length }));
-  const stages = Array.from(new Set(deals.map((deal) => deal.stage))).map((stage) => {
-    const stageDeals = deals.filter((deal) => deal.stage === stage);
-    return { name: stage, count: stageDeals.length, value: stageDeals.reduce((total, deal) => total + deal.value, 0) };
-  });
-  const stageMax = max(stages.map((stage) => stage.value));
-  const sellers = users.map((user) => {
-    const userDeals = deals.filter((deal) => deal.owner === user);
-    const userWon = userDeals.filter((deal) => deal.status === 'Ganha');
-    return { name: user, value: userWon.reduce((total, deal) => total + deal.value, 0), count: userDeals.length, won: userWon.length };
-  }).sort((a, b) => b.value - a.value);
-  const sellerMax = max(sellers.map((seller) => seller.value));
+  return <div className="workspace-stack report-document">
+    <section className="card pad report-header"><div><span className="one-kicker">CLACK ONE · RELATÓRIO EXECUTIVO</span><h2>Vendas, atendimento e execução</h2><p>Dados atuais da empresa. Gere uma versão para apresentação pelo navegador.</p></div><button className="btn primary no-print" onClick={()=>window.print()}>Imprimir / Salvar em PDF</button></section>
 
-  return (
-    <div className="grid" style={{ gap: 18 }}>
-      <div className="card pad">
-        <div className="section-title" style={{ alignItems: 'flex-start' }}>
-          <div><h2>Relatórios premium</h2><p className="notice" style={{ marginTop: 6 }}>Visão executiva para venda, gestão e tomada de decisão comercial.</p></div>
-          <span>Fase 9 ativa</span>
-        </div>
-        <div className="grid metrics" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', marginTop: 18 }}>
-          <div className="metric"><span>Valor vendido</span><strong>{brl(soldValue)}</strong><small>{wonDeals.length} venda(s)</small></div>
-          <div className="metric"><span>Em negociação</span><strong>{brl(openValue)}</strong><small>{openDeals.length} aberta(s)</small></div>
-          <div className="metric"><span>Previsão ponderada</span><strong>{brl(forecastValue)}</strong><small>valor x chance</small></div>
-          <div className="metric"><span>Conversão</span><strong>{pct(conversionRate)}</strong><small>{wonDeals.length}/{deals.length}</small></div>
-          <div className="metric"><span>Ticket médio</span><strong>{brl(averageTicket)}</strong><small>vendas fechadas</small></div>
-          <div className="metric"><span>Tarefas concluídas</span><strong>{pct(taskRate)}</strong><small>{completedTasks}/{tasks.length}</small></div>
-        </div>
-      </div>
+    <section className="grid metrics executive-metrics">
+      <div className="card metric"><span>Valor vendido</span><strong>{brl(sold)}</strong><small>{won.length} venda(s)</small></div>
+      <div className="card metric"><span>Em negociação</span><strong>{brl(openValue)}</strong><small>{open.length} aberta(s)</small></div>
+      <div className="card metric"><span>Forecast</span><strong>{brl(forecast)}</strong><small>ponderado</small></div>
+      <div className="card metric"><span>Conversão</span><strong>{pct(conversion)}</strong><small>{won.length}/{deals.length}</small></div>
+      <div className="card metric"><span>Ticket médio</span><strong>{brl(ticket)}</strong><small>ganhas</small></div>
+      <div className="card metric"><span>Execução</span><strong>{pct(taskRate)}</strong><small>{completed}/{tasks.length} tarefas</small></div>
+    </section>
 
-      <div className="grid two-col">
-        <div className="card pad">
-          <div className="section-title"><h2>Leads por origem</h2><span>Captação</span></div>
-          <div className="report-bars">{sourceCounts.map((source) => <div className="bar" key={source.name}><span><b>{source.name}</b><b>{source.value}</b></span><i style={{ width: `${Math.max(8, source.value / sourceMax * 100)}%` }} /></div>)}</div>
-        </div>
-        <div className="card pad">
-          <div className="section-title"><h2>Temperatura dos leads</h2><span>Prioridade</span></div>
-          <div style={{ display: 'grid', gap: 12 }}>{temperatures.map((item) => <div className="timeline-item" key={item.name} style={{ margin: 0 }}><div className="section-title"><b>{item.name}</b><span>{item.value}</span></div><div style={{ height: 8, borderRadius: 999, background: '#e5f8f6', overflow: 'hidden' }}><div style={{ width: `${Math.max(8, leads.length ? item.value / leads.length * 100 : 0)}%`, height: '100%', background: item.name === 'Quente' ? '#ef4444' : item.name === 'Morno' ? '#f59e0b' : '#0ea5e9' }} /></div></div>)}</div>
-        </div>
-      </div>
+    <section className="grid two-col">
+      <div className="card pad"><div className="section-title"><h2>Origem dos contatos</h2><span>captação</span></div><div className="report-bars">{sources.map(([name,value])=><div className="bar" key={name}><span><b>{name}</b><small>{value}</small></span><i style={{width:`${Math.max(8,(value/sourceMax)*100)}%`}}/></div>)}{!sources.length&&<div className="empty">Sem dados de captação.</div>}</div></div>
+      <div className="card pad"><div className="section-title"><h2>Pipeline por etapa</h2><span>valor</span></div><div className="report-bars">{stages.map(([name,value])=><div className="bar" key={name}><span><b>{name}</b><small>{brl(value.value)} · {value.count}</small></span><i style={{width:`${Math.max(8,(value.value/stageMax)*100)}%`}}/></div>)}</div></div>
+    </section>
 
-      <div className="grid two-col">
-        <div className="card pad"><div className="section-title"><h2>Funil por etapa</h2><span>Valor em pipeline</span></div><div style={{ display: 'grid', gap: 12 }}>{stages.map((stage) => <div className="timeline-item" key={stage.name} style={{ margin: 0 }}><div className="section-title"><b>{stage.name}</b><span>{brl(stage.value)}</span></div><p className="notice">{stage.count} oportunidade(s)</p><div style={{ height: 8, borderRadius: 999, background: '#e5f8f6', overflow: 'hidden' }}><div style={{ width: `${Math.max(8, stage.value / stageMax * 100)}%`, height: '100%', background: '#338b85' }} /></div></div>)}</div></div>
-        <div className="card pad"><div className="section-title"><h2>Ranking comercial</h2><span>Performance</span></div><div className="report-bars">{sellers.map((seller) => <div className="bar" key={seller.name}><span><b>{seller.name}</b><b>{brl(seller.value)}</b></span><i style={{ width: `${Math.max(8, seller.value / sellerMax * 100)}%` }} /><small className="notice">{seller.count} oportunidade(s) • {seller.won} ganha(s)</small></div>)}</div></div>
-      </div>
-
-      <div className="grid two-col">
-        <div className="card pad"><div className="section-title"><h2>Resumo comercial</h2><span>Direção</span></div><p>Vendas ganhas: <b>{wonDeals.length}</b></p><p>Vendas perdidas: <b>{lostDeals.length}</b></p><p>Oportunidades abertas: <b>{openDeals.length}</b></p><p>Tarefas vencidas: <b>{tasks.filter((task) => task.status === 'Vencida').length}</b></p></div>
-        <div className="card pad"><div className="section-title"><h2>Leitura executiva</h2><span>Decisão rápida</span></div><div className="timeline-item"><b>Onde acelerar</b><p className="notice">Priorize oportunidades abertas com maior valor e maior probabilidade.</p></div><div className="timeline-item"><b>Onde corrigir</b><p className="notice">Acompanhe tarefas vencidas, oportunidades perdidas e origens com baixa captação para ajustar campanha e atendimento.</p></div></div>
-      </div>
-    </div>
-  );
+    <section className="grid two-col">
+      <div className="card pad"><div className="section-title"><h2>Performance por responsável</h2><span>negócios ganhos</span></div><div className="table-wrap"><table><thead><tr><th>Responsável</th><th>Oportunidades</th><th>Ganhas</th><th>Valor</th></tr></thead><tbody>{owners.map(o=><tr key={o.name}><td>{o.name}</td><td>{o.total}</td><td>{o.won}</td><td>{brl(o.value)}</td></tr>)}</tbody></table></div></div>
+      <div className="card pad"><div className="section-title"><h2>Leitura executiva</h2><span>ação</span></div><div className="timeline"><div className="timeline-item"><b>Receita</b><p>{open.length} oportunidade(s) em aberto somam {brl(openValue)}; forecast atual de {brl(forecast)}.</p></div><div className="timeline-item"><b>Risco</b><p>{tasks.filter(t=>t.status==='Vencida').length} tarefa(s) vencidas e {lost.length} negócio(s) perdidos.</p></div><div className="timeline-item"><b>Captação</b><p>{sources[0]?`${sources[0][0]} lidera a entrada com ${sources[0][1]} contato(s).`:'Base ainda sem origem registrada.'}</p></div></div></div>
+    </section>
+  </div>;
 }

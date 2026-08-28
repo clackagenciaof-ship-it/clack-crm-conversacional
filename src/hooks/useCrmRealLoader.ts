@@ -1,7 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from 'react';
-import { getCrmDataMode, getCrmDataModeLabel } from '@/lib/crm/data-mode';
+import { useCallback, useState } from 'react';
 import { loadCrmSnapshotFromSupabase } from '@/lib/crm/supabase-loader';
 import type { Lead, Opportunity, QuickMessage, Task } from '@/types/crm';
 
@@ -14,33 +13,40 @@ type UseCrmRealLoaderParams = {
 
 export function useCrmRealLoader({ setLeads, setDeals, setTasks, setMessages }: UseCrmRealLoaderParams) {
   const [loadingRealData, setLoadingRealData] = useState(false);
-  const [dataNotice, setDataNotice] = useState(getCrmDataModeLabel());
+  const [dataNotice, setDataNotice] = useState('Aguardando autenticação para carregar dados reais.');
+
+  const clearData = useCallback(() => {
+    setLeads([]);
+    setDeals([]);
+    setTasks([]);
+    setMessages([]);
+  }, [setDeals, setLeads, setMessages, setTasks]);
 
   const reloadRealData = useCallback(async () => {
-    if (getCrmDataMode() !== 'real') return false;
-
     setLoadingRealData(true);
     try {
       const snapshot = await loadCrmSnapshotFromSupabase();
-      if (!snapshot) return false;
+      if (!snapshot) {
+        clearData();
+        setDataNotice('Sessão sem empresa vinculada. Nenhum dado fictício foi carregado.');
+        return false;
+      }
 
       setLeads(snapshot.leads);
       setDeals(snapshot.deals);
       setTasks(snapshot.tasks);
       setMessages(snapshot.messages);
-      setDataNotice(snapshot.notice);
+      setDataNotice('Dados reais sincronizados com o Supabase.');
       return true;
-    } catch {
-      setDataNotice('Banco preparado, mas usando demonstração como fallback seguro.');
+    } catch (error) {
+      console.error('Falha ao carregar dados reais.', error);
+      clearData();
+      setDataNotice('Falha ao sincronizar dados reais. O CRM não substituiu o banco por dados fictícios.');
       return false;
     } finally {
       setLoadingRealData(false);
     }
-  }, [setDeals, setLeads, setMessages, setTasks]);
+  }, [clearData, setDeals, setLeads, setMessages, setTasks]);
 
-  useEffect(() => {
-    reloadRealData();
-  }, [reloadRealData]);
-
-  return { loadingRealData, dataNotice, reloadRealData };
+  return { loadingRealData, dataNotice, setDataNotice, reloadRealData, clearData };
 }

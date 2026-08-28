@@ -1,4 +1,3 @@
-import { getCrmDataModeLabel } from '@/lib/crm/data-mode';
 import { roleLabels, roleScreens } from '@/lib/crm/permissions';
 import type { Screen, UserRole } from '@/types/crm';
 
@@ -12,39 +11,38 @@ type HeaderProps = {
 };
 
 const titles: Record<Screen, string> = {
-  dashboard: 'Dashboard comercial',
-  leads: 'Contatos e leads',
-  kanban: 'Kanban comercial',
+  dashboard: 'Visão geral',
+  leads: 'Contatos',
+  kanban: 'Pipeline comercial',
   tasks: 'Tarefas e follow-ups',
-  messages: 'Mensagens rápidas',
-  inbox: 'Atendimento',
-  intelligence: 'ONE Intelligence',
-  'public-engagement': 'Relacionamento Público',
-  products: 'Produtos e serviços',
+  messages: 'Modelos de mensagem',
+  inbox: 'Central de atendimento',
+  intelligence: 'ONE Core',
+  'public-engagement': 'Público 360',
+  products: 'Catálogo',
   reports: 'Relatórios',
   finance: 'Financeiro',
-  onboarding: 'Onboarding SaaS',
+  onboarding: 'Implantação',
   settings: 'Configurações'
 };
 
 export function Header({ screen, setScreen, dataNotice, loadingRealData, userRole = 'Admin Empresa', onLogout }: HeaderProps) {
-  const dataModeLabel = loadingRealData ? 'Carregando dados...' : dataNotice || getCrmDataModeLabel();
-  const allowedScreens = roleScreens[userRole] || roleScreens['Admin Empresa'];
-  const canOpenLeads = allowedScreens.includes('leads');
-  const canOpenKanban = allowedScreens.includes('kanban');
+  const label = loadingRealData ? 'Sincronizando dados reais...' : dataNotice || 'Operação conectada';
+  const allowed = roleScreens[userRole] || roleScreens['Admin Empresa'];
 
   return (
-    <div className="topbar">
+    <header className="topbar">
       <div>
+        <span className="one-kicker">ATENDE · ENTENDE · EXECUTA · RESOLVE · VENDE · APRENDE</span>
         <h1>{titles[screen]}</h1>
-        <p>Clack Growth Company • Seu CRM inteligente de vendas e atendimento • {dataModeLabel}</p>
+        <p>{label}</p>
         <span className="role-pill">{roleLabels[userRole] || roleLabels['Admin Empresa']}</span>
       </div>
       <div className="top-actions">
-        {canOpenLeads && <button className="btn" onClick={() => setScreen('leads')}>Novo Lead</button>}
-        {canOpenKanban && <button className="btn primary" onClick={() => setScreen('kanban')}>Abrir Funil</button>}
+        {allowed.includes('leads') && <button className="btn" onClick={() => setScreen('leads')}>+ Contato</button>}
+        {allowed.includes('inbox') && <button className="btn primary" onClick={() => setScreen('inbox')}>Atender</button>}
         {onLogout && <button className="btn" onClick={onLogout}>Sair</button>}
       </div>
-    </div>
+    </header>
   );
 }

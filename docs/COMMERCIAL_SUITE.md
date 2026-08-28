@@ -1,41 +1,58 @@
-# CLACK Commercial Suite
+# CLACK ONE — Arquitetura de Produto
 
-## Visão
+## Princípio
 
-A evolução comercial do CLACK CRM preserva os módulos existentes e incorpora princípios operacionais do ONE CORE sem criar dois sistemas paralelos.
+O CLACK consolidou CRM, atendimento e os princípios operacionais do ONE CORE na mesma aplicação.
 
-### Camada ONE Intelligence
+**ATENDE → ENTENDE → EXECUTA → RESOLVE → VENDE → APRENDE**
 
-- Customer 360 sobre contatos, oportunidades, tarefas e atendimento.
-- Next Best Action com prioridades operacionais.
-- Revenue Intelligence com pipeline, ganhos e forecast ponderado.
-- OmniRoute para leitura de origens e captação multicanal.
-- Integration Hub como arquitetura de conectores e governança.
+O objetivo é reduzir troca de ferramentas e permitir que um evento em uma área gere consequência nas demais.
 
-### CLACK Público 360
+## Fluxos conectados
 
-Vertical de relacionamento público e gestão de atendimento:
+### Comercial
+Origem → contato → oportunidade → tarefa → conversa → venda ganha → recebimento → relatório.
 
-**Mapear → Ouvir → Priorizar → Resolver → Informar → Medir**
+### Atendimento
+WhatsApp → fila → responsável → histórico → modelo/fluxo/IA → oportunidade ou resolução.
 
-Permite:
+### Catálogo
+Oferta → oportunidade → venda → faturamento.
 
-- estatísticas agregadas por estado, cidade e território;
-- população total como dado público agregado e com fonte;
-- cadastro de contatos para relacionamento e atendimento;
-- registro de consentimento;
-- demandas e eventos públicos;
-- rascunhos de comunicação de serviço, evento e informação pública.
+### ONE Core
+Não é um painel paralelo. Lê as tabelas e serviços existentes e apresenta:
+- saúde de integrações;
+- conversas sem responsável;
+- tarefas vencidas;
+- pipeline e forecast;
+- origens de captação;
+- automações/fluxos ativos;
+- recebimentos pendentes.
 
-## Governança
+## Público 360
 
-- não registrar preferência política individual;
-- não inferir posicionamento de pessoas;
-- não usar dados pessoais para segmentação persuasiva;
-- manter consentimento, opt-out e trilha de auditoria;
-- identificar automação quando aplicável;
-- respeitar LGPD e regras dos canais.
+Vertical com estatísticas territoriais agregadas, contatos, lideranças, demandas, eventos, agenda, geolocalização, comunicação informativa, ativos, simulação agregada e auditoria.
 
-## Estratégia comercial
+### Limites
+- não registrar intenção de voto individual;
+- não inferir preferência política;
+- não classificar pessoas por ideologia/partido;
+- não automatizar persuasão política personalizada;
+- usar dados eleitorais oficiais somente em leitura agregada;
+- comunicação exige finalidade permitida e consentimento quando aplicável.
 
-O CLACK CRM permanece como produto principal. ONE CORE fornece padrões de inteligência, governança e integração. O módulo Público é uma vertical adicional de relacionamento e atendimento.
+## Dados reais x demo
+
+A aplicação possui modos separados:
+- **real**: autenticação Supabase + tenant; arrays começam vazios e só recebem o snapshot do banco;
+- **demo**: entrada explícita e dados locais isolados.
+
+Não existe fallback automático de produção para dados fictícios.
+
+## UX
+
+A navegação foi agrupada em Visão, Operação, Conversas, Inteligência, Vertical, Gestão e Administração. Guias de tela ficam recolhidos por padrão. A experiência móvel destaca as ações mais frequentes.
+
+## Multissetor
+
+A arquitetura é genérica por tenant. O segmento muda catálogo, pipeline, scripts, automações e indicadores — não exige outro CRM.

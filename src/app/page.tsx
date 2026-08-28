@@ -23,116 +23,31 @@ import { useCrmMvpState } from "@/hooks/useCrmMvpState";
 
 export default function Home() {
   const crm = useCrmMvpState();
+  if (!crm.logged) return <Login onLogin={crm.login} onDemo={crm.enterDemo} />;
 
-  if (!crm.logged) return <Login onLogin={crm.login} />;
+  const allowed = canAccessScreen(crm.userRole, crm.screen);
+  function safeSetScreen(next: typeof crm.screen) { crm.setScreen(canAccessScreen(crm.userRole,next)?next:getDefaultScreenForRole(crm.userRole)); }
 
-  const canAccessCurrentScreen = canAccessScreen(crm.userRole, crm.screen);
+  return <AppShell screen={crm.screen} setScreen={safeSetScreen} userRole={crm.userRole}>
+    <Header screen={crm.screen} setScreen={safeSetScreen} dataNotice={crm.dataNotice} loadingRealData={crm.loadingRealData} userRole={crm.userRole} onLogout={crm.logout}/>
 
-  function safeSetScreen(nextScreen: typeof crm.screen) {
-    crm.setScreen(canAccessScreen(crm.userRole, nextScreen) ? nextScreen : getDefaultScreenForRole(crm.userRole));
-  }
+    {!allowed&&<div className="card pad access-card"><h2>Acesso ajustado ao seu perfil</h2><p className="notice">{roleDescriptions[crm.userRole]}</p><button className="btn primary" onClick={()=>crm.setScreen(getDefaultScreenForRole(crm.userRole))}>Ir para minha área</button></div>}
+    {allowed&&<FeatureGuide screen={crm.screen} userRole={crm.userRole}/>}
 
-  return (
-    <AppShell screen={crm.screen} setScreen={safeSetScreen} userRole={crm.userRole}>
-      <Header screen={crm.screen} setScreen={safeSetScreen} dataNotice={crm.dataNotice} loadingRealData={crm.loadingRealData} userRole={crm.userRole} onLogout={crm.logout} />
+    {allowed&&crm.screen==="dashboard"&&<DashboardPage leads={crm.leads} deals={crm.deals} tasks={crm.tasks} setScreen={safeSetScreen}/>}
+    {allowed&&crm.screen==="leads"&&<LeadsPage leads={crm.filteredLeads} leadForm={crm.leadForm} setLeadForm={crm.setLeadForm} addLead={crm.addLead} filter={crm.filter} setFilter={crm.setFilter} ownerFilter={crm.ownerFilter} setOwnerFilter={crm.setOwnerFilter} sourceFilter={crm.sourceFilter} setSourceFilter={crm.setSourceFilter} tempFilter={crm.tempFilter} setTempFilter={crm.setTempFilter} setSelectedLead={crm.setSelectedLead} openConversation={crm.openConversation} removeLead={crm.removeLead}/>}
+    {allowed&&crm.screen==="kanban"&&<KanbanPage leads={crm.leads} deals={crm.deals} moveDeal={crm.moveDeal} updateDeal={crm.updateDeal} markWon={crm.markWon} markLost={crm.markLost} openConversation={crm.openConversation} setSelectedLead={crm.setSelectedLead}/>}
+    {allowed&&crm.screen==="tasks"&&<TasksPage tasks={crm.tasks} leads={crm.leads} taskForm={crm.taskForm} setTaskForm={crm.setTaskForm} addTask={crm.addTask} completeTask={crm.completeTask} updateTaskItem={crm.updateTaskItem} removeTask={crm.removeTask}/>}
+    {allowed&&crm.screen==="messages"&&<MessagesPage messages={crm.messages} setMessages={crm.setMessages} copyMessage={crm.copyMessage} demoMode={crm.demoMode}/>}
+    {allowed&&crm.screen==="inbox"&&<AtendimentoPage/>}
+    {allowed&&crm.screen==="intelligence"&&<IntelligencePage leads={crm.leads} deals={crm.deals} tasks={crm.tasks}/>}
+    {allowed&&crm.screen==="public-engagement"&&<PublicEngagementPage/>}
+    {allowed&&crm.screen==="products"&&<ProductsPage/>}
+    {allowed&&crm.screen==="reports"&&<ReportsPage leads={crm.leads} deals={crm.deals} tasks={crm.tasks}/>}
+    {allowed&&crm.screen==="finance"&&<FinancePage/>}
+    {allowed&&crm.screen==="onboarding"&&<OnboardingPage/>}
+    {allowed&&crm.screen==="settings"&&<SettingsPage currentRole={crm.userRole} currentUserName={crm.userName} setUserRole={crm.setUserRole}/>}
 
-      {!canAccessCurrentScreen && (
-        <div className="card pad access-card">
-          <h2>Acesso ajustado ao seu perfil</h2>
-          <p className="notice">{roleDescriptions[crm.userRole]}</p>
-          <button className="btn primary" onClick={() => crm.setScreen(getDefaultScreenForRole(crm.userRole))}>Ir para minha área</button>
-        </div>
-      )}
-
-      {canAccessCurrentScreen && <FeatureGuide screen={crm.screen} userRole={crm.userRole} />}
-
-      {canAccessCurrentScreen && crm.screen === "dashboard" && (
-        <DashboardPage leads={crm.leads} deals={crm.deals} tasks={crm.tasks} setScreen={safeSetScreen} />
-      )}
-
-      {canAccessCurrentScreen && crm.screen === "leads" && (
-        <LeadsPage
-          leads={crm.filteredLeads}
-          leadForm={crm.leadForm}
-          setLeadForm={crm.setLeadForm}
-          addLead={crm.addLead}
-          filter={crm.filter}
-          setFilter={crm.setFilter}
-          ownerFilter={crm.ownerFilter}
-          setOwnerFilter={crm.setOwnerFilter}
-          sourceFilter={crm.sourceFilter}
-          setSourceFilter={crm.setSourceFilter}
-          tempFilter={crm.tempFilter}
-          setTempFilter={crm.setTempFilter}
-          setSelectedLead={crm.setSelectedLead}
-          openConversation={crm.openConversation}
-          removeLead={crm.removeLead}
-        />
-      )}
-
-      {canAccessCurrentScreen && crm.screen === "kanban" && (
-        <KanbanPage
-          leads={crm.leads}
-          deals={crm.deals}
-          moveDeal={crm.moveDeal}
-          updateDeal={crm.updateDeal}
-          markWon={crm.markWon}
-          markLost={crm.markLost}
-          openConversation={crm.openConversation}
-          setSelectedLead={crm.setSelectedLead}
-        />
-      )}
-
-      {canAccessCurrentScreen && crm.screen === "tasks" && (
-        <TasksPage
-          tasks={crm.tasks}
-          leads={crm.leads}
-          taskForm={crm.taskForm}
-          setTaskForm={crm.setTaskForm}
-          addTask={crm.addTask}
-          completeTask={crm.completeTask}
-          updateTaskItem={crm.updateTaskItem}
-          removeTask={crm.removeTask}
-        />
-      )}
-
-      {canAccessCurrentScreen && crm.screen === "messages" && (
-        <MessagesPage messages={crm.messages} setMessages={crm.setMessages} copyMessage={crm.copyMessage} />
-      )}
-
-      {canAccessCurrentScreen && crm.screen === "inbox" && <AtendimentoPage />}
-
-      {canAccessCurrentScreen && crm.screen === "intelligence" && <IntelligencePage leads={crm.leads} deals={crm.deals} tasks={crm.tasks} />}
-
-      {canAccessCurrentScreen && crm.screen === "public-engagement" && <PublicEngagementPage />}
-
-      {canAccessCurrentScreen && crm.screen === "products" && <ProductsPage />}
-
-      {canAccessCurrentScreen && crm.screen === "reports" && (
-        <ReportsPage leads={crm.leads} deals={crm.deals} tasks={crm.tasks} />
-      )}
-
-      {canAccessCurrentScreen && crm.screen === "finance" && <FinancePage />}
-
-      {canAccessCurrentScreen && crm.screen === "onboarding" && <OnboardingPage />}
-
-      {canAccessCurrentScreen && crm.screen === "settings" && (
-        <SettingsPage currentRole={crm.userRole} currentUserName={crm.userName} setUserRole={crm.setUserRole} />
-      )}
-
-      {crm.selectedLead && canAccessCurrentScreen && (
-        <LeadDrawer
-          lead={crm.selectedLead}
-          deals={crm.deals.filter((deal) => deal.leadId === crm.selectedLead?.id)}
-          tasks={crm.tasks.filter((task) => task.leadId === crm.selectedLead?.id)}
-          messages={crm.messages}
-          onClose={() => crm.setSelectedLead(null)}
-          openConversation={crm.openConversation}
-          copyMessage={crm.copyMessage}
-          updateLead={crm.updateLead}
-          addLeadNote={crm.addLeadNote}
-        />
-      )}
-    </AppShell>
-  );
+    {crm.selectedLead&&allowed&&<LeadDrawer lead={crm.selectedLead} deals={crm.deals.filter(d=>d.leadId===crm.selectedLead?.id)} tasks={crm.tasks.filter(t=>t.leadId===crm.selectedLead?.id)} messages={crm.messages} onClose={()=>crm.setSelectedLead(null)} openConversation={crm.openConversation} copyMessage={crm.copyMessage} updateLead={crm.updateLead} addLeadNote={crm.addLeadNote}/>}
+  </AppShell>;
 }

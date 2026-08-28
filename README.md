@@ -1,166 +1,136 @@
-# CLACK CRM Conversacional
+# CLACK ONE — CRM & Operations
 
-MVP 1 do **Clack CRM Conversacional**, uma plataforma SaaS responsiva para gestão de vendas, atendimento, leads e funil comercial.
+O **CLACK ONE** é uma plataforma SaaS multiempresa para **captação, relacionamento, atendimento, vendas, automação, execução, financeiro e inteligência operacional**.
 
-Link em produção:
+Produção:
 
-```text
-https://clack-crm-conversacional.vercel.app/
-```
+`https://clack-crm-conversacional.vercel.app/`
 
-## Objetivo
+## Proposta do produto
 
-Criar uma base funcional para empresas que vendem pelo WhatsApp organizarem:
+O CLACK não é somente um cadastro de leads. A operação conecta seis motores:
 
-- contatos e leads;
-- oportunidades comerciais;
-- funil em Kanban;
-- tarefas e follow-ups;
-- mensagens rápidas;
-- relatórios básicos;
-- configurações de empresa e perfis.
+**ATENDE → ENTENDE → EXECUTA → RESOLVE → VENDE → APRENDE**
 
-## Escopo do MVP 1
+A mesma base serve empresas de serviços, e-commerce, clínicas, odontologia, imobiliárias, academias, restaurantes, hotéis, provedores, consultorias e outras operações com relacionamento e receita.
 
-Incluído nesta versão:
+## Operação real e demonstração
 
-- Login demonstrativo.
-- Dashboard comercial.
-- Cadastro e filtro de leads.
-- Ficha do cliente com histórico.
-- Kanban comercial com movimentação de oportunidades.
-- Abertura de conversa externa via link de mensageria.
-- Tarefas e follow-ups.
-- Mensagens rápidas copiáveis.
-- Relatórios básicos.
-- Configurações e perfis.
-- Layout responsivo com identidade visual verde turquesa da Clack.
+- Contas autenticadas carregam **somente dados reais da própria empresa**.
+- Falha de banco não injeta dados fictícios na sessão.
+- A demonstração é uma entrada explícita e isolada na tela de login.
+- Dados demo ficam em `src/data/demo-data.ts` e não são usados por uma empresa autenticada.
 
-Fora do MVP 1, mas preparado como próximas fases:
+## Núcleo operacional
 
-- automações;
-- pagamentos InfinitePay;
-- WhatsApp Cloud API;
-- webhooks;
-- white label;
-- inteligência artificial.
+### Visão geral
+Indicadores reais de contatos, pipeline, receita ganha, conversão e tarefas. O bloco de follow-up mostra apenas as prioridades mais importantes.
 
-## Como rodar no Codespaces ou localmente
+### Contatos
+Cadastro e histórico de relacionamento. Ao criar um contato comercial, o CRM pode iniciar uma oportunidade no pipeline.
+
+### Pipeline
+Kanban operacional com visão padrão de negócios em andamento, valores por etapa, probabilidade, próxima ação, ganho e perda.
+
+### Tarefas
+Fila de execução com filtros por pendentes, vencidas, concluídas e todas.
+
+### Atendimento
+Inbox de WhatsApp com:
+- fila;
+- responsável;
+- prioridade;
+- transferência;
+- resolução;
+- histórico;
+- modelos rápidos;
+- fluxos;
+- Agente Will;
+- realtime quando disponível e contingência de atualização.
+
+### ONE Core
+O antigo painel conceitual foi substituído por leitura operacional real:
+- estado do Supabase;
+- conta e provedor WhatsApp;
+- webhook;
+- automações e fluxos;
+- Agente Will;
+- runtime;
+- OmniRoute por origem;
+- prioridades calculadas a partir da operação.
+
+### Catálogo
+Produtos e serviços são ligados a oportunidades e financeiro. O catálogo é a referência para vendas, propostas e IA.
+
+### Financeiro
+Fluxo: **venda ganha → recebimento → baixa → entrada**.
+
+### Relatórios
+Indicadores comerciais reais com opção de **Imprimir / Salvar em PDF** pelo navegador.
+
+### Implantação
+Checklist baseado em diagnóstico real de usuários, produtos, pipeline e automações.
+
+## Público 360
+
+Vertical operacional para:
+- eleitorado **agregado** por território e fonte oficial;
+- contatos de relacionamento;
+- lideranças;
+- demandas;
+- tarefas;
+- eventos;
+- agenda;
+- geolocalização;
+- comunicação informativa com consentimento;
+- veículos e ativos;
+- simulações matemáticas agregadas;
+- auditoria.
+
+Não foi implementado perfil individual de intenção de voto, preferência partidária ou microsegmentação persuasiva.
+
+## Perfis
+
+- **Administrador**: operação completa, integrações e administração.
+- **Gestor**: gestão, equipe, atendimento, pipeline, relatórios, financeiro e implantação.
+- **Vendedor**: contatos, pipeline, tarefas, atendimento, mensagens, catálogo e ONE Core.
+- **Atendimento**: contatos, conversas, tarefas, mensagens, catálogo e Público 360 quando habilitado.
+- **Financeiro**: pipeline, catálogo, relatórios e recebimentos.
+
+## Stack
+
+- Next.js 14
+- TypeScript
+- Supabase Auth + PostgreSQL + RLS + Realtime
+- Vercel
+- WhatsApp Cloud API
+- integrações e automações versionadas por API/migrations
+
+## Desenvolvimento
 
 ```bash
 npm install
-npm run dev
-```
-
-Depois acesse a porta exibida pelo Next.js, normalmente:
-
-```bash
-http://localhost:3000
-```
-
-Na tela de login, use qualquer e-mail e senha. Este MVP está em modo demonstração com dados locais.
-
-## Scripts úteis
-
-```bash
 npm run dev
 npm run build
 npm run start
 ```
 
-## Estrutura técnica preparada
+Variáveis principais:
 
 ```text
-src/
-  app/
-  data/
-    demo-data.ts
-  lib/
-    crm/
-      business-rules.ts
-      constants.ts
-      formatters.ts
-    supabase/
-      client.ts
-      crm-repository.ts
-      database.types.ts
-  types/
-    crm.ts
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+SUPABASE_SERVICE_ROLE_KEY=
+WHATSAPP_ACCESS_TOKEN=
+WHATSAPP_PHONE_NUMBER_ID=
+WHATSAPP_VERIFY_TOKEN=
+WHATSAPP_GRAPH_API_VERSION=
 ```
 
-## Documentação do produto
+## Documentação
 
-- `docs/ARQUITETURA_TECNICA.md` — arquitetura técnica e estratégia de evolução.
-- `docs/ROADMAP.md` — roadmap oficial por fase.
-- `docs/BACKLOG.md` — backlog técnico e funcional.
-- `docs/SUPABASE_CONEXAO.md` — conexão futura com Supabase.
-- `docs/IDENTIDADE_VISUAL.md` — identidade visual verde turquesa do CRM.
-- `docs/PROXIMOS_PASSOS.md` — próximos passos técnicos.
+- `docs/ARQUITETURA_TECNICA.md`
+- `docs/COMMERCIAL_SUITE.md`
+- `docs/SUPABASE_CONEXAO.md`
 
-## Dados demonstrativos
-
-Empresa: **Clack Growth Company**
-
-Usuários demonstrativos:
-
-- Will Sampaio — Admin
-- Amanda — Gestora
-- Lucas — Vendedor
-- Daniela — Atendente
-
-Leads demonstrativos:
-
-- Lucas Pereira
-- Ana Clara
-- Isabela Costa
-- Marcos Oliveira
-- Fernanda Lima
-- Rafael Santos
-- Thiago Almeida
-- Evelyn Silva
-- Sérgio Roberto
-- Márcio Costa
-
-## Paleta visual
-
-A interface segue uma identidade verde turquesa, mais limpa, clara, institucional e profissional:
-
-- Verde profundo: `#005954`
-- Verde institucional: `#338b85`
-- Turquesa principal: `#5dc1b9`
-- Turquesa claro: `#9ce0db`
-- Fundo gelo: `#d5ffff`
-- Branco: `#ffffff`
-- Cinzas de apoio: tons frios derivados de azul/cinza e verde acinzentado
-
-Gradiente oficial:
-
-```css
-linear-gradient(135deg, #005954 0%, #338b85 48%, #5dc1b9 100%)
-```
-
-## Estágio atual
-
-```text
-FASE 0 — Ideação e documento técnico: concluída
-FASE 1 — MVP visual e funcional: concluída
-FASE 1.1 — GitHub + Codespaces: concluída
-FASE 1.2 — Vercel online: concluída
-FASE 1.3 — Preparação para Supabase: concluída
-FASE 2 — Banco real + login real: em preparação
-```
-
-## Próxima etapa técnica
-
-A próxima evolução é conectar backend real com Supabase:
-
-1. Criar projeto no Supabase.
-2. Rodar o schema `supabase/migrations/001_initial_schema.sql`.
-3. Configurar variáveis na Vercel.
-4. Migrar os dados locais para banco real.
-5. Adicionar autenticação real.
-6. Depois integrar API oficial de mensagens e pagamentos.
-
----
-
-**CLACK CRM Conversacional** — venda mais, atenda melhor e acompanhe seu funil em tempo real.
+**CLACK ONE** — uma operação única para atender, vender e executar com dados reais.

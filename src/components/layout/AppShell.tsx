@@ -6,94 +6,81 @@ import { roleScreens } from '@/lib/crm/permissions';
 import type { ReactNode } from 'react';
 import type { Screen, UserRole } from '@/types/crm';
 
-type AppShellProps = {
-  screen: Screen;
-  setScreen: (screen: Screen) => void;
-  userRole?: UserRole;
-  children: ReactNode;
-};
+type AppShellProps = { screen: Screen; setScreen: (screen: Screen) => void; userRole?: UserRole; children: ReactNode; };
 
-const nav = [
-  ['dashboard', 'Dashboard'],
-  ['leads', 'Leads'],
-  ['kanban', 'Kanban'],
-  ['tasks', 'Tarefas'],
-  ['messages', 'Mensagens'],
-  ['inbox', 'Atendimento'],
-  ['intelligence', 'ONE Intelligence'],
-  ['public-engagement', 'Relacionamento Público'],
-  ['products', 'Produtos'],
-  ['reports', 'Relatórios'],
-  ['finance', 'Financeiro'],
-  ['onboarding', 'Onboarding'],
-  ['settings', 'Configurações']
-] as const;
+type NavGroup = { label: string; items: Array<[Screen, string]>; };
+
+const navGroups: NavGroup[] = [
+  { label: 'Visão', items: [['dashboard', 'Visão geral']] },
+  { label: 'Operação', items: [['leads', 'Contatos'], ['kanban', 'Pipeline'], ['tasks', 'Tarefas']] },
+  { label: 'Conversas', items: [['inbox', 'Atendimento'], ['messages', 'Modelos de mensagem']] },
+  { label: 'Inteligência', items: [['intelligence', 'ONE Core']] },
+  { label: 'Vertical', items: [['public-engagement', 'Público 360']] },
+  { label: 'Gestão', items: [['products', 'Catálogo'], ['reports', 'Relatórios'], ['finance', 'Financeiro']] },
+  { label: 'Administração', items: [['onboarding', 'Implantação'], ['settings', 'Configurações']] }
+];
 
 export function AppShell({ screen, setScreen, userRole = 'Admin Empresa', children }: AppShellProps) {
   const [branding, setBranding] = useState<CompanyBranding>(defaultBranding);
-  const allowedScreens = roleScreens[userRole] || roleScreens['Admin Empresa'];
-  const visibleNav = nav.filter(([key]) => allowedScreens.includes(key));
+  const allowed = roleScreens[userRole] || roleScreens['Admin Empresa'];
 
   useEffect(() => {
     let cancelled = false;
-    async function start() {
-      try {
-        const data = await loadBranding();
-        if (cancelled) return;
-        const nextBranding = { ...defaultBranding, ...data.branding };
-        setBranding(nextBranding);
-        applyBranding(nextBranding);
-      } catch {
-        applyBranding(defaultBranding);
-      }
-    }
-    start();
+    loadBranding().then((data) => {
+      if (cancelled) return;
+      const next = { ...defaultBranding, ...data.branding };
+      setBranding(next);
+      applyBranding(next);
+    }).catch(() => applyBranding(defaultBranding));
     return () => { cancelled = true; };
   }, []);
 
   const initial = branding.app_name?.slice(0, 1).toUpperCase() || 'C';
+  const visibleGroups = navGroups
+    .map((group) => ({ ...group, items: group.items.filter(([key]) => allowed.includes(key)) }))
+    .filter((group) => group.items.length);
+
+  const mobileItems = Array.from(new Map(
+    visibleGroups.flatMap((group) => group.items).filter(([key]) => ['dashboard', 'leads', 'kanban', 'inbox', 'intelligence'].includes(key)).map((item) => [item[0], item])
+  ).values()).slice(0, 5);
 
   return (
     <div className="app">
-      <aside
-        className="sidebar"
-        style={{
-          background: `linear-gradient(180deg, ${branding.sidebar_color || branding.primary_color}, ${branding.primary_color || '#005954'})`,
-          overflowY: 'auto',
-          overflowX: 'hidden',
-          paddingBottom: 42
-        }}
-      >
+      <aside className="sidebar">
         <div className="brand">
           {branding.logo_url ? <img src={branding.logo_url} alt={branding.brand_name} className="brand-logo" /> : <div className="logo-mark">{initial}</div>}
-          <div>
-            <strong>{branding.app_name || 'CLACK CRM'}</strong>
-            <span>{branding.brand_name || 'Conversacional'}</span>
-          </div>
+          <div><strong>{branding.app_name || 'CLACK ONE'}</strong><span>{branding.brand_name || 'CRM & Operations'}</span></div>
         </div>
 
-        <div className="nav">
-          {visibleNav.map(([key, label]) => (
-            <button key={key} className={screen === key ? 'active' : ''} onClick={() => setScreen(key)}>
-              {label}
-            </button>
-          ))}
-        </div>
+        <nav className="nav grouped-nav" aria-label="Navegação principal">
+          {visibleGroups.map((group) => {
+            const active = group.items.some(([key]) => key === screen);
+            if (group.items.length === 1) {
+              const [key, label] = group.items[0];
+              return <button key={key} className={screen === key ? 'active' : ''} onClick={() => setScreen(key)}><span>{label}</span></button>;
+            }
+            return (
+              <details key={group.label + String(active)} className="nav-group" open={active}>
+                <summary>{group.label}<span>{active ? '•' : '+'}</span></summary>
+                <div className="nav-submenu">
+                  {group.items.map(([key, label]) => <button key={key} className={screen === key ? 'active' : ''} onClick={() => setScreen(key)}>{label}</button>)}
+                </div>
+              </details>
+            );
+          })}
+        </nav>
 
-        <div className="sidebar-card" style={{ marginBottom: 28 }}>
+        <div className="sidebar-card">
+          <small>Perfil ativo</small>
           <strong>{userRole}</strong>
-          <p>Menu ajustado automaticamente conforme o perfil de acesso ativo.</p>
+          <p>Menu e ações ajustados automaticamente ao seu acesso.</p>
         </div>
       </aside>
 
       <main className="main">{children}</main>
 
       <div className="mobile-nav">
-        {visibleNav.slice(0, 5).map(([key, label]) => (
-          <button key={key} className={screen === key ? 'active' : ''} onClick={() => setScreen(key)}>
-            {label}
-          </button>
-        ))}
+        {mobileItems.map(([key, label]) => <button key={key} className={screen === key ? 'active' : ''} onClick={() => setScreen(key)}>{label}</button>)}
       </div>
     </div>
   );
