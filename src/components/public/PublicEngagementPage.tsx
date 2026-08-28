@@ -9,9 +9,9 @@ import { PublicAutomationPanel } from './PublicAutomationPanel';
 type Tab='overview'|'electorate'|'contacts'|'leaders'|'requests'|'tasks'|'events'|'agenda'|'geo'|'communication'|'assets'|'simulator'|'audit';
 
 const tabs:Array<[Tab,string]>=[
-  ['overview','Visão geral'],['electorate','Eleitorado'],['contacts','Contatos'],['leaders','Lideranças'],
-  ['requests','Demandas'],['tasks','Tarefas'],['events','Eventos'],['agenda','Agenda'],
-  ['geo','Geolocalização'],['communication','Comunicação'],['assets','Veículos & ativos'],['simulator','Simulador'],['audit','Auditoria']
+  ['overview','Visão geral'],['geo','Mapa & Geolocalização'],['contacts','Contatos'],['electorate','Eleitorado'],
+  ['leaders','Lideranças'],['requests','Demandas'],['tasks','Tarefas'],['events','Eventos'],['agenda','Agenda'],
+  ['communication','Comunicação'],['assets','Veículos & ativos'],['simulator','Simulador'],['audit','Auditoria']
 ];
 
 const emptyData:PublicOpsData={territories:[],electorate:[],contacts:[],leaders:[],requests:[],events:[],agenda:[],assets:[],notices:[],simulations:[],audit:[],whatsappAccount:null};
@@ -96,11 +96,11 @@ export function PublicEngagementPage(){
 
   return <div className="workspace-stack public-workspace">
     <section className="one-hero card pad public-hero">
-      <div><span className="one-kicker">CLACK PÚBLICO 360</span><h2>Território, relacionamento e execução</h2><p>Uma vertical operacional com dados territoriais agregados, contatos, lideranças, demandas, agenda, eventos, comunicação e auditoria.</p></div>
+      <div><span className="one-kicker">CLACK PÚBLICO 360</span><h2>Território, relacionamento e execução</h2><p>Uma vertical operacional com dados territoriais agregados, contatos, lideranças, demandas, agenda, eventos, comunicação e auditoria.</p><div className="hero-actions"><button className="btn primary geo-hero-btn" onClick={()=>setTab('geo')}>Abrir Mapa & Geolocalização</button><button className="btn" onClick={()=>setTab('contacts')}>Cadastrar contato</button></div></div>
       <div className="public-method"><span>MAPEAR</span><span>OUVIR</span><span>EXECUTAR</span><span>INFORMAR</span><span>MEDIR</span></div>
     </section>
 
-    <nav className="workspace-tabs">{tabs.map(([key,label])=><button key={key} className={tab===key?'active':''} onClick={()=>setTab(key)}>{label}</button>)}</nav>
+    <nav className="workspace-tabs public-tabs">{tabs.map(([key,label])=><button key={key} className={[tab===key?'active':'',key==='geo'?'geo-tab':''].filter(Boolean).join(' ')} onClick={()=>setTab(key)}>{label}</button>)}</nav>
     {notice&&<div className="card pad notice">{notice}</div>}
     {loading&&<div className="card pad">Sincronizando dados...</div>}
 
@@ -159,10 +159,13 @@ export function PublicEngagementPage(){
       <div className="card pad"><div className="section-title"><h2>Agenda</h2><span>{data.agenda.length} compromissos</span></div><div className="timeline">{data.agenda.map((r:any)=><div className="timeline-item" key={r.id}><b>{r.title}</b><p>{dateTime(r.starts_at)} · {r.venue||r.city||'local a definir'}</p><span className="health ok">{r.category}</span></div>)}</div></div>
     </section>}
 
-    {!loading&&tab==='geo'&&<section className="grid two-col">
+    {!loading&&tab==='geo'&&<section className="geo-workspace">
+      <div className="card pad geo-header"><div><span className="panel-eyebrow">Geointeligência</span><h2>Mapa & Geolocalização</h2><p className="panel-subtitle">Visualize territórios, cidades e contatos com coordenadas no mapa interativo do CLACK.</p></div><div className="geo-kpis"><div><strong>{geoRows.length}</strong><span>territórios no mapa</span></div><div><strong>{mapPoints.length}</strong><span>pontos georreferenciados</span></div></div></div>
+      <div className="grid two-col">
       <div className="card pad"><div className="section-title"><h2>Territórios georreferenciados</h2><span>{geoRows.length}</span></div><select className="select full" value={geo?.id||''} onChange={e=>setSelectedGeo(e.target.value)}><option value="">Selecione</option>{geoRows.map((r:any)=><option key={r.id} value={r.id}>{r.city}/{r.state} · {r.territory_name||'território'}</option>)}</select>{geo?<div className="geo-summary"><b>{geo.city}/{geo.state}</b><span>{geo.latitude}, {geo.longitude}</span><span>Eleitorado agregado: {fmt(geo.electorate_total)}</span></div>:<div className="empty">Cadastre latitude e longitude no território para abrir o mapa.</div>}</div>
       <div className="card pad map-card"><div className="section-title"><div><span className="panel-eyebrow">Mapa interativo</span><h2>Leaflet + OpenStreetMap</h2><p className="panel-subtitle">Territórios e contatos georreferenciados no mesmo mapa operacional.</p></div><span>{mapPoints.length} ponto(s)</span></div><LeafletMap points={mapPoints} selectedId={geo?.id||selectedGeo} onSelect={(id)=>{if(geoRows.some((r:any)=>r.id===id))setSelectedGeo(id)}}/></div>
       <details className="card pad create-panel full-span"><summary>+ Cadastrar território com coordenadas</summary><div className="form-grid" style={{marginTop:16}}><input className="input" placeholder="Cidade" value={territory.city} onChange={e=>setTerritory({...territory,city:e.target.value})}/><input className="input" placeholder="UF" value={territory.state} onChange={e=>setTerritory({...territory,state:e.target.value.toUpperCase()})}/><input className="input" placeholder="Região / território" value={territory.territory_name} onChange={e=>setTerritory({...territory,territory_name:e.target.value})}/><input className="input" type="number" placeholder="Eleitorado agregado" value={territory.electorate_total} onChange={e=>setTerritory({...territory,electorate_total:e.target.value})}/><input className="input" placeholder="Latitude" value={territory.latitude} onChange={e=>setTerritory({...territory,latitude:e.target.value})}/><input className="input" placeholder="Longitude" value={territory.longitude} onChange={e=>setTerritory({...territory,longitude:e.target.value})}/><button className="btn primary" onClick={()=>create('public_territories',{...territory,electorate_total:number(territory.electorate_total)||null,population_total:number(territory.population_total)||null,latitude:number(territory.latitude)||null,longitude:number(territory.longitude)||null,source_date:new Date().toISOString().slice(0,10)})}>Salvar território</button></div></details>
+      </div>
     </section>}
 
     {!loading&&tab==='communication'&&<section className="grid two-col">

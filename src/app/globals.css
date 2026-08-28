@@ -419,3 +419,45 @@ td{font-size:12px;}
 .onboarding-block .block-actions{display:flex;gap:6px;align-items:center}
 .activation-grid{display:grid;gap:8px}
 @media(max-width:900px){.automation-summary{grid-template-columns:1fr}.leaflet-map{height:400px}.map-card{min-height:500px}.automation-row{display:grid}.automation-actions{justify-items:start}.onboarding-block{grid-template-columns:auto 1fr}.onboarding-block .block-actions{grid-column:2}}
+
+/* Public 360 navigation: all primary areas visible at once */
+.public-tabs{
+  display:grid!important;
+  grid-template-columns:repeat(auto-fit,minmax(118px,1fr))!important;
+  gap:7px!important;
+  overflow:visible!important;
+  padding:7px!important;
+}
+.public-tabs button{
+  min-height:42px;
+  white-space:normal!important;
+  line-height:1.2;
+  text-align:center;
+  border:1px solid transparent!important;
+}
+.public-tabs .geo-tab{
+  background:rgba(181,226,250,.48);
+  color:#10282c;
+  border-color:rgba(15,163,177,.32)!important;
+  font-weight:850;
+}
+.public-tabs .geo-tab.active{
+  background:#0FA3B1!important;
+  color:#fff!important;
+  border-color:#0FA3B1!important;
+}
+.hero-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}
+.geo-hero-btn{box-shadow:0 10px 24px rgba(15,163,177,.18)}
+.geo-workspace{display:grid;gap:14px}
+.geo-header{display:flex;align-items:center;justify-content:space-between;gap:18px;background:linear-gradient(135deg,#fff 0%,rgba(181,226,250,.35) 60%,rgba(237,222,164,.28) 100%)}
+.geo-header h2{margin:3px 0 4px;color:var(--deep);font-size:24px}
+.geo-kpis{display:flex;gap:8px}
+.geo-kpis>div{min-width:120px;padding:12px 14px;border-radius:14px;background:#fff;border:1px solid var(--border)}
+.geo-kpis strong{display:block;font-size:22px;color:var(--deep)}
+.geo-kpis span{display:block;font-size:9px;color:var(--text-soft);margin-top:2px}
+.geo-workspace .map-card{padding:16px!important;min-height:620px}
+@media(max-width:900px){
+  .public-tabs{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+  .geo-header{display:grid}
+  .geo-kpis{display:grid;grid-template-columns:1fr 1fr}
+}
