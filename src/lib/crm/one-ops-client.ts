@@ -57,7 +57,7 @@ export async function loadOneOpsSnapshot(): Promise<OneOpsSnapshot> {
   }
 
   const now=Date.now();
-  const sourceMap=(contacts.data||[]).reduce<Record<string,number>>((acc:any,row:any)=>{const key=row.origin||'Não informado';acc[key]=(acc[key]||0)+1;return acc;},{});
+  const sourceMap: Record<string, number> = (contacts.data || []).reduce((acc: Record<string, number>, row: any) => { const key = row.origin || 'Não informado'; acc[key] = (acc[key] || 0) + 1; return acc; }, {} as Record<string, number>);
   const token=await accessToken();
   let health:any=null;
   if(token){

@@ -40,9 +40,10 @@ export function AppShell({ screen, setScreen, userRole = 'Admin Empresa', childr
     .map((group) => ({ ...group, items: group.items.filter(([key]) => allowed.includes(key)) }))
     .filter((group) => group.items.length);
 
-  const mobileItems = Array.from(new Map(
-    visibleGroups.flatMap((group) => group.items).filter(([key]) => ['dashboard', 'leads', 'kanban', 'inbox', 'intelligence'].includes(key)).map((item) => [item[0], item])
-  ).values()).slice(0, 5);
+  const mobileItems: Array<[Screen, string]> = visibleGroups
+    .flatMap((group) => group.items)
+    .filter(([key]) => ['dashboard', 'leads', 'kanban', 'inbox', 'intelligence'].includes(key))
+    .slice(0, 5);
 
   return (
     <div className="app">
