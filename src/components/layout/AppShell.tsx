@@ -20,6 +20,8 @@ const nav = [
   ['tasks', 'Tarefas'],
   ['messages', 'Mensagens'],
   ['inbox', 'Atendimento'],
+  ['intelligence', 'ONE Intelligence'],
+  ['public-engagement', 'Relacionamento Público'],
   ['products', 'Produtos'],
   ['reports', 'Relatórios'],
   ['finance', 'Financeiro'],
