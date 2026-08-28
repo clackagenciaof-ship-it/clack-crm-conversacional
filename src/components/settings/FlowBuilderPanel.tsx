@@ -125,7 +125,7 @@ export function FlowBuilderPanel() {
       <div className="section-title" style={{ alignItems: 'flex-start' }}>
         <div>
           <h2>Fluxos automáticos e chatbot</h2>
-          <p className="notice" style={{ marginTop: 6 }}>Fase 10.2: construa jornadas de mensagens para boas-vindas, proposta, pós-venda e atendimento.</p>
+          <p className="notice" style={{ marginTop: 6 }}>Crie jornadas que iniciam automaticamente por palavras-gatilho recebidas no WhatsApp e avançam conforme a conversa.</p>
         </div>
         <span>{loading ? 'Carregando...' : `${activeFlows.length} ativo(s)`}</span>
       </div>
@@ -133,7 +133,7 @@ export function FlowBuilderPanel() {
       <div className="grid metrics" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', marginTop: 16 }}>
         <div className="metric"><span>Fluxos criados</span><strong>{flows.length}</strong><small>chatbot</small></div>
         <div className="metric"><span>Etapas de mensagem</span><strong>{steps.length}</strong><small>passos</small></div>
-        <div className="metric"><span>Canal inicial</span><strong>WhatsApp</strong><small>QR/API Meta depois</small></div>
+        <div className="metric"><span>Canal inicial</span><strong>WhatsApp</strong><small>API Meta conectada</small></div>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(280px, .9fr) minmax(320px, 1.1fr)', gap: 18, marginTop: 18 }}>
@@ -162,12 +162,12 @@ export function FlowBuilderPanel() {
         <div>
           <div className="timeline-item" style={{ margin: 0, background: 'linear-gradient(135deg, #005954 0%, #338b85 48%, #5dc1b9 100%)', color: '#ffffff', borderLeft: 'none' }}>
             <b style={{ color: '#ffffff' }}>Modelos prontos para vender mais</b>
-            <p style={{ color: 'rgba(255,255,255,.84)', marginTop: 8 }}>Use como ponto de partida. Depois a conexão QR Code/API Meta fará o envio real.</p>
+            <p style={{ color: 'rgba(255,255,255,.84)', marginTop: 8 }}>Use como ponto de partida. Com a Cloud API configurada, o primeiro passo é disparado automaticamente pelo webhook.</p>
             <div style={{ display: 'grid', gap: 10, marginTop: 14 }}>{flowTemplates.map((template) => <button className="btn" key={template.name} onClick={() => useTemplate(template)} style={{ textAlign: 'left' }}><b>{template.name}</b><br /><small>{template.objective}</small></button>)}</div>
           </div>
           <div className="timeline-item" style={{ marginTop: 14 }}>
             <b>Funcionalidades na régua</b>
-            <p className="notice">Base pronta para IA integrada, GPT especialista, chatbot, disparos segmentados, suporte humano, QR Code e API oficial Meta.</p>
+            <p className="notice">Fluxos, atendimento humano, Agente Will e API Meta compartilham o mesmo histórico operacional.</p>
           </div>
         </div>
       </div>

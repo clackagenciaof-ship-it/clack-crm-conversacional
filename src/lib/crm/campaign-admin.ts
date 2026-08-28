@@ -10,6 +10,9 @@ export type MessageCampaign = {
   status: string;
   total_recipients: number;
   created_at: string;
+  sent_count?: number;
+  failed_count?: number;
+  queued_count?: number;
 };
 
 export type CampaignForm = {
@@ -44,4 +47,16 @@ export async function createCampaign(form: CampaignForm) {
   const result = await response.json();
   if (!response.ok || !result.ok) throw new Error(result.error || 'Não foi possível preparar disparo.');
   return result.campaign as MessageCampaign;
+}
+
+
+export async function processCampaign(campaignId: string) {
+  const response = await fetch('/api/campaigns/process', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...(await getSessionHeader()) },
+    body: JSON.stringify({ campaignId, limit: 20 })
+  });
+  const result = await response.json();
+  if (!response.ok || !result.ok) throw new Error(result.error || 'Não foi possível processar a fila.');
+  return result as { ok: boolean; sent: number; failed: number; queued: number; status: string };
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import { createCampaign, loadCampaigns, type CampaignForm, type MessageCampaign } from '@/lib/crm/campaign-admin';
+import { createCampaign, loadCampaigns, processCampaign, type CampaignForm, type MessageCampaign } from '@/lib/crm/campaign-admin';
 
 const segmentOptions = [
   { value: 'lead_quente', label: 'Leads quentes', description: 'Contatos com maior intenção de compra.' },
@@ -32,6 +32,7 @@ export function CampaignPanel() {
   const [form, setForm] = useState<CampaignForm>(emptyForm);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [processingId, setProcessingId] = useState<string | null>(null);
 
   async function refresh() {
     setLoading(true);
@@ -54,12 +55,25 @@ export function CampaignPanel() {
     } finally { setSaving(false); }
   }
 
+  async function sendCampaign(campaign: MessageCampaign) {
+    setProcessingId(campaign.id);
+    try {
+      const result = await processCampaign(campaign.id);
+      await refresh();
+      alert(`Fila processada. Enviadas: ${result.sent}. Falhas: ${result.failed}. Restantes: ${result.queued}.`);
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'Não foi possível enviar a campanha.');
+    } finally {
+      setProcessingId(null);
+    }
+  }
+
   return (
     <div className="card pad" style={{ overflow: 'hidden' }}>
       <div className="section-title" style={{ alignItems: 'flex-start' }}>
         <div>
           <h2>Disparos segmentados</h2>
-          <p className="notice" style={{ marginTop: 6 }}>Fase 10.5: prepare campanhas com segmentação. O envio real fica condicionado à API oficial Meta e às regras de opt-in.</p>
+          <p className="notice" style={{ marginTop: 6 }}>Prepare campanhas somente para contatos com opt-in. A fila envia pela API oficial Meta e registra status por destinatário.</p>
         </div>
         <span>{loading ? 'Carregando...' : `${campaigns.length} campanha(s)`}</span>
       </div>
@@ -87,7 +101,7 @@ export function CampaignPanel() {
       </div>
 
       <div className="timeline" style={{ marginTop: 16 }}>
-        {campaigns.map((campaign) => <div className="timeline-item" key={campaign.id}><div className="section-title"><b>{campaign.name}</b><span>{campaign.status}</span></div><p className="notice">{segmentLabel(campaign.segment_type)} • {campaign.total_recipients} destinatário(s) • {formatDate(campaign.created_at)}</p><p>{campaign.message}</p></div>)}
+        {campaigns.map((campaign) => <div className="timeline-item" key={campaign.id}><div className="section-title"><b>{campaign.name}</b><span>{campaign.status}</span></div><p className="notice">{segmentLabel(campaign.segment_type)} • {campaign.total_recipients} destinatário(s) • {formatDate(campaign.created_at)}</p><p>{campaign.message}</p><p className="notice">Enviadas: {campaign.sent_count || 0} • Falhas: {campaign.failed_count || 0} • Na fila: {campaign.queued_count ?? campaign.total_recipients}</p>{campaign.status !== 'completed' && campaign.total_recipients > 0 && <button className="btn small primary" disabled={processingId === campaign.id} onClick={() => sendCampaign(campaign)}>{processingId === campaign.id ? 'Enviando...' : 'Enviar fila agora'}</button>}</div>)}
         {!campaigns.length && <div className="empty">Nenhum disparo preparado ainda.</div>}
       </div>
     </div>

@@ -8,6 +8,7 @@ import { persistLeadActivity, removeRealLead, updateRealLead } from '@/lib/crm/l
 import { getDefaultScreenForRole, normalizeRole } from '@/lib/crm/permissions';
 import { hasActiveSupabaseSession, signInWithSupabaseOrDemo, signOutSupabase } from '@/lib/supabase/auth';
 import { getCurrentProfile } from '@/lib/supabase/crm-repository';
+import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { useCrmRealLoader } from '@/hooks/useCrmRealLoader';
 import type { Lead, LeadStatus, LeadTemperature, Opportunity, OpportunityStatus, PipelineStage, QuickMessage, Screen, Task, TaskStatus, UserRole } from '@/types/crm';
 
@@ -68,6 +69,30 @@ export function useCrmMvpState() {
     restoreSession();
     return () => { cancelled = true; };
   }, [reloadRealData]);
+
+  useEffect(() => {
+    if (!logged || sessionMode !== 'real') return;
+    const supabase = createSupabaseBrowserClient() as any;
+    if (!supabase?.channel) return;
+
+    let syncTimer: number | undefined;
+    const sync = () => {
+      if (syncTimer) window.clearTimeout(syncTimer);
+      syncTimer = window.setTimeout(() => reloadRealData(), 250);
+    };
+
+    const channel = supabase
+      .channel('clack-crm-live')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'contacts' }, sync)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'opportunities' }, sync)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, sync)
+      .subscribe();
+
+    return () => {
+      if (syncTimer) window.clearTimeout(syncTimer);
+      supabase.removeChannel?.(channel);
+    };
+  }, [logged, sessionMode, reloadRealData]);
 
   const filteredLeads = useMemo(() => leads.filter((lead) =>
     (lead.name.toLowerCase().includes(filter.toLowerCase()) || lead.phone.includes(filter)) &&
