@@ -1,5 +1,5 @@
--- CLACK Commercial Suite — ONE Intelligence + Engajamento Público responsável
--- Esta migração não cria perfil político individual, intenção de voto ou microtargeting.
+-- CLACK Commercial Suite — ONE Intelligence + Relacionamento Público
+-- Dados territoriais são agregados e o módulo não registra preferência política individual.
 
 create table if not exists public_territories (
   id uuid primary key default gen_random_uuid(),
@@ -7,7 +7,7 @@ create table if not exists public_territories (
   state text not null,
   city text not null,
   territory_name text,
-  electorate_total bigint check (electorate_total is null or electorate_total >= 0),
+  population_total bigint check (population_total is null or population_total >= 0),
   source_name text,
   source_date date,
   created_at timestamptz not null default now(),
@@ -54,7 +54,7 @@ create table if not exists public_events (
   created_at timestamptz not null default now()
 );
 
-create table if not exists public_broadcasts (
+create table if not exists public_notices (
   id uuid primary key default gen_random_uuid(),
   company_id uuid not null references companies(id) on delete cascade,
   title text not null,
@@ -70,13 +70,13 @@ create index if not exists idx_public_territories_company_city on public_territo
 create index if not exists idx_public_contacts_company_city on public_contacts(company_id, state, city);
 create index if not exists idx_public_contacts_company_consent on public_contacts(company_id, consent_status);
 create index if not exists idx_public_requests_company_status on public_requests(company_id, status);
-create index if not exists idx_public_broadcasts_company_status on public_broadcasts(company_id, status);
+create index if not exists idx_public_notices_company_status on public_notices(company_id, status);
 
 alter table public_territories enable row level security;
 alter table public_contacts enable row level security;
 alter table public_requests enable row level security;
 alter table public_events enable row level security;
-alter table public_broadcasts enable row level security;
+alter table public_notices enable row level security;
 
 drop policy if exists "company public territories" on public_territories;
 create policy "company public territories" on public_territories for all
@@ -98,11 +98,11 @@ create policy "company public events" on public_events for all
 using (company_id in (select company_id from profiles where id = auth.uid()))
 with check (company_id in (select company_id from profiles where id = auth.uid()));
 
-drop policy if exists "company public broadcasts" on public_broadcasts;
-create policy "company public broadcasts" on public_broadcasts for all
+drop policy if exists "company public notices" on public_notices;
+create policy "company public notices" on public_notices for all
 using (company_id in (select company_id from profiles where id = auth.uid()))
 with check (company_id in (select company_id from profiles where id = auth.uid()));
 
-comment on table public_territories is 'Estatísticas territoriais agregadas. Não usar para armazenar preferência ou intenção política individual.';
-comment on table public_contacts is 'Relacionamento público com consentimento. Não armazenar ideologia, intenção de voto ou preferência partidária.';
-comment on table public_broadcasts is 'Comunicações limitadas a serviço, evento e informação pública; não usar para persuasão eleitoral automatizada.';
+comment on table public_territories is 'Estatísticas territoriais agregadas para cobertura e capacidade de atendimento.';
+comment on table public_contacts is 'Relacionamento público com consentimento de comunicação quando aplicável.';
+comment on table public_notices is 'Comunicações limitadas a serviço, evento e informação pública.';
