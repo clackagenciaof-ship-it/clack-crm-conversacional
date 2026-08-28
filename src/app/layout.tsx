@@ -2,11 +2,9 @@ import type { Metadata } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'CLACK CRM Conversacional',
-  description: 'MVP 1 para gestão de leads, atendimento, tarefas e funil comercial.',
-  other: {
-    google: 'notranslate'
-  }
+  title: 'CLACK ONE — CRM & Operations',
+  description: 'Plataforma multiempresa para captação, atendimento, vendas, automação, execução, financeiro e inteligência operacional.',
+  other: { google: 'notranslate' }
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
