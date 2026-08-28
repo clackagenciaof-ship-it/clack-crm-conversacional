@@ -1,7 +1,7 @@
 import { getAdminRequestContext } from '@/lib/server/clack-admin';
 import { normalizeRole } from '@/lib/crm/permissions';
 
-type CampaignPayload = { name?: string; segment_type?: string; message?: string; template_id?: string | null; };
+type CampaignPayload = { name?: string; segment_type?: string; message?: string; template_id?: string | null; scheduled_at?: string | null; };
 
 function canManageCampaigns(role: string) { const normalized = normalizeRole(role); return normalized === 'Admin Empresa' || normalized === 'Gestor'; }
 function normalizePhone(phone?: string | null) { return (phone || '').replace(/\D/g, ''); }
@@ -62,7 +62,8 @@ export async function POST(request: Request) {
     channel: 'WhatsApp',
     message: payload.message.trim(),
     template_id: payload.template_id || null,
-    status: 'draft',
+    status: payload.scheduled_at ? 'scheduled' : 'draft',
+    scheduled_at: payload.scheduled_at || null,
     total_recipients: cleanRecipients.length,
     queued_count: cleanRecipients.length,
     created_by: context.profile.id
@@ -76,7 +77,7 @@ export async function POST(request: Request) {
     if (recipientsError) return Response.json({ ok: false, error: recipientsError.message }, { status: 500 });
   }
 
-  await context.service.from('atendimento_audit_logs').insert({ company_id: context.profile.company_id, actor_profile_id: context.profile.id, action: 'campaign_created', next_value: { campaign: campaign.name, segmentType, recipients: cleanRecipients.length, optInOnly: true } });
+  await context.service.from('atendimento_audit_logs').insert({ company_id: context.profile.company_id, actor_profile_id: context.profile.id, action: 'campaign_created', next_value: { campaign: campaign.name, segmentType, recipients: cleanRecipients.length, optInOnly: true, scheduledAt: payload.scheduled_at || null } });
 
   return Response.json({ ok: true, campaign: { ...campaign, total_recipients: cleanRecipients.length, queued_count: cleanRecipients.length } });
 }

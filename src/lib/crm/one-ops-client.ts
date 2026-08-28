@@ -26,8 +26,11 @@ export type OneOpsSnapshot = {
     automationEngine: boolean;
     publicAutomationEngine: boolean;
     publicAutomationActive: number;
+    campaignEngine: boolean;
+    scheduledCampaigns: number;
     lastAutomationRunAt?: string | null;
     lastPublicAutomationRunAt?: string | null;
+    lastCampaignRunAt?: string | null;
     ai: boolean;
   };
 };
@@ -97,8 +100,11 @@ export async function loadOneOpsSnapshot(): Promise<OneOpsSnapshot> {
       automationEngine:health?.automation?.engineHealthy===true,
       publicAutomationEngine:health?.publicAutomation?.engineHealthy===true,
       publicAutomationActive:Number(health?.publicAutomation?.active||0),
+      campaignEngine:health?.campaigns?.engineHealthy===true,
+      scheduledCampaigns:Number(health?.campaigns?.scheduled||0),
       lastAutomationRunAt:health?.automation?.lastRunAt||null,
       lastPublicAutomationRunAt:health?.publicAutomation?.lastRunAt||null,
+      lastCampaignRunAt:health?.campaigns?.lastRunAt||null,
       ai:health?.ai?.enabled===true
     }
   };

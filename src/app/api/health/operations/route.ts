@@ -6,17 +6,19 @@ export async function GET(request: Request) {
   if (!context?.profile.company_id) return Response.json({ ok: false, error: 'Empresa não encontrada.' }, { status: 400 });
 
   const companyId = context.profile.company_id;
-  const [account, flows, rules, publicAutomations, heartbeats] = await Promise.all([
+  const [account, flows, rules, publicAutomations, scheduledCampaigns, heartbeats] = await Promise.all([
     context.service.from('whatsapp_accounts').select('id,status,display_phone_number').eq('company_id', companyId).maybeSingle(),
     context.service.from('chatbot_flows').select('id', { count: 'exact', head: true }).eq('company_id', companyId).eq('active', true),
     context.service.from('automation_rules').select('id', { count: 'exact', head: true }).eq('company_id', companyId).eq('active', true),
     context.service.from('public_message_automations').select('id', { count: 'exact', head: true }).eq('company_id', companyId).eq('active', true),
-    context.service.from('system_job_heartbeat').select('*').in('job_name', ['clack-automation-engine','public-message-engine'])
+    context.service.from('message_campaigns').select('id', { count: 'exact', head: true }).eq('company_id', companyId).eq('status', 'scheduled'),
+    context.service.from('system_job_heartbeat').select('*').in('job_name', ['clack-automation-engine','public-message-engine','campaign-engine'])
   ]);
 
   const heartbeatMap = Object.fromEntries((heartbeats.data || []).map((row: any) => [row.job_name, row]));
   const commercialHeartbeat = heartbeatMap['clack-automation-engine'];
   const publicHeartbeat = heartbeatMap['public-message-engine'];
+  const campaignHeartbeat = heartbeatMap['campaign-engine'];
   const fresh = (value?: string | null) => Boolean(value && Date.now() - new Date(value).getTime() < 12 * 60 * 1000);
 
   return Response.json({
@@ -38,6 +40,11 @@ export async function GET(request: Request) {
       active: publicAutomations.count || 0,
       lastRunAt: publicHeartbeat?.last_run_at || null,
       engineHealthy: fresh(publicHeartbeat?.last_run_at)
+    },
+    campaigns: {
+      scheduled: scheduledCampaigns.count || 0,
+      lastRunAt: campaignHeartbeat?.last_run_at || null,
+      engineHealthy: fresh(campaignHeartbeat?.last_run_at)
     },
     ai: { enabled: true, engine: 'CLACK Will' }
   });

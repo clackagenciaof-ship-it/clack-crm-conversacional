@@ -55,6 +55,7 @@ export function IntelligencePage({leads,deals,tasks,setScreen}:{leads:Lead[];dea
     {name:'Webhook',detail:'entrada e status de mensagens',ok:Boolean(ops?.integration.webhook)},
     {name:'Motor comercial',detail:`${ops?.activeAutomations||0} regras · ${ops?.activeFlows||0} fluxos · ${fmt(ops?.integration.lastAutomationRunAt)}`,ok:Boolean(ops?.integration.automationEngine)},
     {name:'Público 360',detail:`${ops?.integration.publicAutomationActive||0} automação(ões) · ${fmt(ops?.integration.lastPublicAutomationRunAt)}`,ok:Boolean(ops?.integration.publicAutomationEngine)},
+    {name:'Campanhas',detail:`${ops?.integration.scheduledCampaigns||0} agendada(s) · ${fmt(ops?.integration.lastCampaignRunAt)}`,ok:Boolean(ops?.integration.campaignEngine)},
     {name:'Agente Will',detail:'apoio ao atendimento',ok:Boolean(ops?.integration.ai)}
   ];
 

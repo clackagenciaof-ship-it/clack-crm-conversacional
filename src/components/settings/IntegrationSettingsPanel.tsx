@@ -8,6 +8,7 @@ type Health={
   whatsapp?:{account?:any;providerConfigured?:boolean;webhookConfigured?:boolean};
   automation?:{activeFlows?:number;activeRules?:number;lastRunAt?:string|null;engineHealthy?:boolean};
   publicAutomation?:{active?:number;lastRunAt?:string|null;engineHealthy?:boolean};
+  campaigns?:{scheduled?:number;lastRunAt?:string|null;engineHealthy?:boolean};
   ai?:{enabled?:boolean;engine?:string};
 };
 
@@ -37,6 +38,7 @@ export function IntegrationSettingsPanel(){
     {title:'Webhook',subtitle:'Entrada e status de mensagens',ok:Boolean(health?.whatsapp?.webhookConfigured),meta:'Meta → CLACK'},
     {title:'Automação comercial',subtitle:`${health?.automation?.activeRules||0} regras · ${health?.automation?.activeFlows||0} fluxos`,ok:Boolean(health?.automation?.engineHealthy),meta:`última rodada: ${fmt(health?.automation?.lastRunAt)}`},
     {title:'Automação Público 360',subtitle:`${health?.publicAutomation?.active||0} avisos programados`,ok:Boolean(health?.publicAutomation?.engineHealthy),meta:`última rodada: ${fmt(health?.publicAutomation?.lastRunAt)}`},
+    {title:'Campanhas automáticas',subtitle:`${health?.campaigns?.scheduled||0} campanha(s) agendada(s)`,ok:Boolean(health?.campaigns?.engineHealthy),meta:`última rodada: ${fmt(health?.campaigns?.lastRunAt)}`},
     {title:'Agente Will',subtitle:health?.ai?.engine||'Assistência operacional',ok:Boolean(health?.ai?.enabled),meta:'apoio ao atendimento'}
   ];
 
