@@ -11,6 +11,8 @@ import { Header } from "@/components/layout/Header";
 import { LeadDrawer } from "@/components/leads/LeadDrawer";
 import { LeadsPage } from "@/components/leads/LeadsPage";
 import { MessagesPage } from "@/components/messages/MessagesPage";
+import { IntelligencePage } from "@/components/intelligence/IntelligencePage";
+import { PublicEngagementPage } from "@/components/public/PublicEngagementPage";
 import { OnboardingPage } from "@/components/onboarding/OnboardingPage";
 import { ProductsPage } from "@/components/products/ProductsPage";
 import { ReportsPage } from "@/components/reports/ReportsPage";
@@ -99,6 +101,10 @@ export default function Home() {
       )}
 
       {canAccessCurrentScreen && crm.screen === "inbox" && <AtendimentoPage />}
+
+      {canAccessCurrentScreen && crm.screen === "intelligence" && <IntelligencePage leads={crm.leads} deals={crm.deals} tasks={crm.tasks} />}
+
+      {canAccessCurrentScreen && crm.screen === "public-engagement" && <PublicEngagementPage />}
 
       {canAccessCurrentScreen && crm.screen === "products" && <ProductsPage />}
 
